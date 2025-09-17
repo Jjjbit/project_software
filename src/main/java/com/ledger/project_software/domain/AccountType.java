@@ -30,5 +30,8 @@ public enum AccountType {
     FUTURES,
     CRYPTO,
     FIXED_DEPOSIT,
-    OTHER_INVEST
+    OTHER_INVEST,
+
+    BORROWING,
+    LENDING
 }
