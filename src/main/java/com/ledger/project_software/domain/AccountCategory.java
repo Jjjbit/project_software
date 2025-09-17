@@ -4,5 +4,6 @@ public enum AccountCategory {
     FUNDS,
     CREDIT,
     RECHARGE,
-    INVEST
+    INVEST,
+    VIRTUAL_ACCOUNT
 }
