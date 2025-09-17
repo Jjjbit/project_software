@@ -31,7 +31,7 @@ public class UserController {
         if (userRepository.findByUsername(username) != null) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body("Username already exists");
         }
-        User user = new User(username, PasswordUtils.hash(password),  User.Role.USER);
+        User user = new User(username, PasswordUtils.hash(password));
         userRepository.save(user);
         return ResponseEntity.ok("Registration successful");
     }
