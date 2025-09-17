@@ -116,7 +116,7 @@ public class User {
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
-    public BigDecimal calculateTotalAssets() {
+    public BigDecimal getTotalAssets() {
         BigDecimal totalBalance = accounts.stream()
                 .filter(account -> !account.getType().equals(AccountType.LOAN))
                 .filter(account -> account.includedInNetAsset && !account.hidden)
@@ -126,8 +126,8 @@ public class User {
         return totalBalance.add(getTotalLending());
     }
 
-    public BigDecimal calculateNetAssets() {
-        return calculateTotalAssets().subtract(getTotalLiabilities()).add(getTotalLending());
+    public BigDecimal getNetAssets() {
+        return getTotalAssets().subtract(getTotalLiabilities()).add(getTotalLending());
     }
 
     public BigDecimal getTotalLiabilities() {
