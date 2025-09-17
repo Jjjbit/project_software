@@ -335,8 +335,10 @@ public class TransactionController {
             }
         }
         if(transaction instanceof Transfer){
-            if(fromAccountId.equals(toAccountId)){
-                return ResponseEntity.badRequest().body("fromAccount and toAccount cannot be the same");
+            if(fromAccountId != null && toAccountId != null) {
+                if (fromAccountId.equals(toAccountId)) {
+                    return ResponseEntity.badRequest().body("fromAccount and toAccount cannot be the same");
+                }
             }
         }
 

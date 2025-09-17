@@ -653,4 +653,213 @@ public class TransactionTest {
         Assertions.assertEquals(updatedAccount2.getId(), updatedTx.getToAccount().getId());
 
     }
+
+    @Test
+    @WithMockUser(username = "Alice")
+    public void testEditTransfer_changeAmountOnly() throws Exception {
+        BasicAccount testAccount2 = new BasicAccount("Test Account 2",
+                BigDecimal.valueOf(500),
+                null,
+                true,
+                true,
+                AccountType.CASH,
+                AccountCategory.FUNDS,
+                testUser);
+        accountRepository.save(testAccount2);
+        testUser.getAccounts().add(testAccount2);
+        userRepository.save(testUser);
+
+        Transaction tx1 = new Transfer(
+                LocalDate.now(),
+                null,
+                testAccount,
+                testAccount2,
+                BigDecimal.valueOf(300),
+                testLedger1
+        );
+        transactionRepository.save(tx1);
+        testAccount.addTransaction(tx1);
+        testAccount2.addTransaction(tx1);
+        testLedger1.getTransactions().add(tx1);
+        accountRepository.save(testAccount);
+        accountRepository.save(testAccount2);
+        ledgerRepository.save(testLedger1);
+
+        mockMvc.perform(put("/transactions/"+tx1.getId()+ "/edit")
+                        .principal(() -> "Alice")
+                        .param("transactionId", String.valueOf(tx1.getId()))
+                        .param("date", "2025-11-01")
+                        .param("note", "Updated Transfer")
+                        .param("amount", "350.00"))
+                .andExpect(status().isOk())
+                .andExpect(content().string("Edited successfully"));
+
+        Transaction updatedTx = transactionRepository.findById(tx1.getId()).orElse(null);
+        Assertions.assertEquals(LocalDate.of(2025,11,1), updatedTx.getDate());
+        Assertions.assertEquals("Updated Transfer", updatedTx.getNote());
+        Assertions.assertEquals(0, updatedTx.getAmount().compareTo(BigDecimal.valueOf(350)));
+
+        Account updatedAccount1 = accountRepository.findById(testAccount.getId()).orElse(null);
+        // Initial balance 1000 - 300 transfer + 300 rollback - 350 new transfer = 650
+        Assertions.assertEquals(0, updatedAccount1.getBalance().compareTo(BigDecimal.valueOf(650)));
+        Assertions.assertTrue(updatedAccount1.getOutgoingTransactions().contains(updatedTx));
+
+        Account updatedAccount2 = accountRepository.findById(testAccount2.getId()).orElse(null);
+        // Initial balance 500 + 300 transfer - 300 rollback + 350 new transfer = 850
+        Assertions.assertEquals(0, updatedAccount2.getBalance().compareTo(BigDecimal.valueOf(850)));
+        Assertions.assertTrue(updatedAccount2.getIncomingTransactions().contains(updatedTx));
+    }
+
+    @Test
+    @WithMockUser(username = "Alice")
+    public void testEditTransfer_changeAccountsAndAmount() throws Exception {
+        BasicAccount testAccount2 = new BasicAccount("Test Account 2",
+                BigDecimal.valueOf(500),
+                null,
+                true,
+                true,
+                AccountType.CASH,
+                AccountCategory.FUNDS,
+                testUser);
+        accountRepository.save(testAccount2);
+        testUser.getAccounts().add(testAccount2);
+        userRepository.save(testUser);
+
+        Transaction tx1 = new Transfer(
+                LocalDate.now(),
+                null,
+                testAccount, //from
+                testAccount2, //to
+                BigDecimal.valueOf(300),
+                testLedger1
+        );
+        transactionRepository.save(tx1);
+        testAccount.addTransaction(tx1);
+        testAccount2.addTransaction(tx1);
+        testLedger1.getTransactions().add(tx1);
+        accountRepository.save(testAccount);
+        accountRepository.save(testAccount2);
+        ledgerRepository.save(testLedger1);
+
+        BasicAccount testAccount3 = new BasicAccount("Test Account 3",
+                BigDecimal.valueOf(800),
+                null,
+                true,
+                true,
+                AccountType.CASH,
+                AccountCategory.FUNDS,
+                testUser);
+        accountRepository.save(testAccount3);
+        testUser.getAccounts().add(testAccount3);
+        userRepository.save(testUser);
+
+        mockMvc.perform(put("/transactions/"+tx1.getId()+ "/edit")
+                        .principal(() -> "Alice")
+                        .param("transactionId", String.valueOf(tx1.getId()))
+                        .param("date", "2025-11-01")
+                        .param("note", "Updated Transfer")
+                        .param("amount", "350.00")
+                        .param("fromAccountId", String.valueOf(testAccount3.getId()))
+                        .param("toAccountId", String.valueOf(testAccount.getId())))
+                .andExpect(status().isOk())
+                .andExpect(content().string("Edited successfully"));
+
+        Transaction updatedTx = transactionRepository.findById(tx1.getId()).orElse(null);
+        Assertions.assertEquals(LocalDate.of(2025,11,1), updatedTx.getDate());
+        Assertions.assertEquals("Updated Transfer", updatedTx.getNote());
+        Assertions.assertEquals(0, updatedTx.getAmount().compareTo(BigDecimal.valueOf(350)));
+        Assertions.assertEquals(testAccount3.getId(), updatedTx.getFromAccount().getId());
+        Assertions.assertEquals(testAccount.getId(), updatedTx.getToAccount().getId());
+
+        Account updatedAccount1 = accountRepository.findById(testAccount.getId()).orElse(null);
+        // Initial balance 1000 - 300 transfer + 300 rollback + 350 new transfer = 1350
+        Assertions.assertEquals(0, updatedAccount1.getBalance().compareTo(BigDecimal.valueOf(1350)));
+        Assertions.assertTrue(updatedAccount1.getIncomingTransactions().contains(updatedTx));
+        Assertions.assertFalse(updatedAccount1.getOutgoingTransactions().contains(updatedTx));
+
+        Account updatedAccount2 = accountRepository.findById(testAccount2.getId()).orElse(null);
+        // Initial balance 500 + 300 transfer - 300 rollback = 500
+        Assertions.assertEquals(0, updatedAccount2.getBalance().compareTo(BigDecimal.valueOf(500)));
+        Assertions.assertFalse(updatedAccount2.getIncomingTransactions().contains(updatedTx));
+        Assertions.assertFalse(updatedAccount2.getOutgoingTransactions().contains(updatedTx));
+
+        Account updatedAccount3 = accountRepository.findById(testAccount3.getId()).orElse(null);
+        // Initial balance 800 - 350 new transfer = 450
+        Assertions.assertEquals(0, updatedAccount3.getBalance().compareTo(BigDecimal.valueOf(450)));
+        Assertions.assertTrue(updatedAccount3.getOutgoingTransactions().contains(updatedTx));
+
+    }
+
+    @Test
+    @WithMockUser(username = "Alice")
+    public void testEditTransfer_changeAccountsOnly() throws Exception {
+        BasicAccount testAccount2 = new BasicAccount("Test Account 2",
+                BigDecimal.valueOf(500),
+                null,
+                true,
+                true,
+                AccountType.CASH,
+                AccountCategory.FUNDS,
+                testUser);
+        accountRepository.save(testAccount2);
+        testUser.getAccounts().add(testAccount2);
+        userRepository.save(testUser);
+
+        Transaction tx1 = new Transfer(
+                LocalDate.now(),
+                null,
+                testAccount, //from
+                testAccount2, //to
+                BigDecimal.valueOf(300),
+                testLedger1
+        );
+        transactionRepository.save(tx1);
+        testAccount.addTransaction(tx1);
+        testAccount2.addTransaction(tx1);
+        testLedger1.getTransactions().add(tx1);
+        accountRepository.save(testAccount);
+        accountRepository.save(testAccount2);
+        ledgerRepository.save(testLedger1);
+
+        BasicAccount testAccount3 = new BasicAccount("Test Account 3",
+                BigDecimal.valueOf(800),
+                null,
+                true,
+                true,
+                AccountType.CASH,
+                AccountCategory.FUNDS,
+                testUser);
+        accountRepository.save(testAccount3);
+        testUser.getAccounts().add(testAccount3);
+        userRepository.save(testUser);
+
+        mockMvc.perform(put("/transactions/"+tx1.getId()+ "/edit")
+                        .principal(() -> "Alice")
+                        .param("transactionId", String.valueOf(tx1.getId()))
+                        .param("fromAccountId", String.valueOf(testAccount3.getId()))
+                        .param("toAccountId", String.valueOf(testAccount.getId())))
+                .andExpect(status().isOk())
+                .andExpect(content().string("Edited successfully"));
+
+        Transaction updatedTx = transactionRepository.findById(tx1.getId()).orElse(null);
+        Assertions.assertEquals(testAccount3.getId(), updatedTx.getFromAccount().getId());
+        Assertions.assertEquals(testAccount.getId(), updatedTx.getToAccount().getId());
+
+        Account updatedAccount1 = accountRepository.findById(testAccount.getId()).orElse(null);
+        // Initial balance 1000 - 300 transfer + 300 rollback + 300 new transfer = 1300
+        Assertions.assertEquals(0, updatedAccount1.getBalance().compareTo(BigDecimal.valueOf(1300)));
+        Assertions.assertTrue(updatedAccount1.getIncomingTransactions().contains(updatedTx));
+        Assertions.assertFalse(updatedAccount1.getOutgoingTransactions().contains(updatedTx));
+
+        Account updatedAccount2 = accountRepository.findById(testAccount2.getId()).orElse(null);
+        // Initial balance 500 + 300 transfer - 300 rollback = 500
+        Assertions.assertEquals(0, updatedAccount2.getBalance().compareTo(BigDecimal.valueOf(500)));
+        Assertions.assertFalse(updatedAccount2.getIncomingTransactions().contains(updatedTx));
+        Assertions.assertFalse(updatedAccount2.getOutgoingTransactions().contains(updatedTx));
+
+        Account updatedAccount3 = accountRepository.findById(testAccount3.getId()).orElse(null);
+        // Initial balance 800 - 300 new transfer = 500
+        Assertions.assertEquals(0, updatedAccount3.getBalance().compareTo(BigDecimal.valueOf(500)));
+        Assertions.assertTrue(updatedAccount3.getOutgoingTransactions().contains(updatedTx));
+    }
 }
