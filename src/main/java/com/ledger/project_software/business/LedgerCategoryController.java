@@ -33,7 +33,6 @@ public class LedgerCategoryController {
     @Transactional
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<String> createCategory(@RequestParam String name,
-                                                 @RequestParam(required = false) Long parentId,
                                                  Principal principal,
                                                  @RequestParam Long ledgerId,
                                                  @RequestParam CategoryType type) {
@@ -44,28 +43,28 @@ public class LedgerCategoryController {
         if (user == null ) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized access");
         }
-
-        LedgerCategory parent = null;
-        if (parentId != null) {
-            parent = ledgerCategoryRepository.findById(parentId)
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Parent category not found"));
-            if (parent.getParent() != null) {
-                return ResponseEntity.badRequest().body("Parent must be a Category");
-            }
+        if(ledgerId == null){
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Must provide ledgerId");
         }
-
         Ledger ledger=ledgerRepository.findById(ledgerId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Ledger not found"));
+        if(name == null || name.trim().isEmpty()){
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Name cannot be empty");
+        }
+        if(name.length() > 100){
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Name too long");
+        }
+        if(ledgerCategoryRepository.existsByLedgerAndName(ledger, name)){
+            return ResponseEntity.status(HttpStatus.CONFLICT).body("Category name must be unique within the ledger");
+        }
 
         LedgerCategory newCategory = new LedgerCategory(name, type, ledger);
-        if (parent != null) {
-            newCategory.setParent(parent);
-            parent.addChild(newCategory);
-            ledgerCategoryRepository.save(parent);
-        }
         ledgerCategoryRepository.save(newCategory);
+        ledger.getCategories().add(newCategory);
+        ledgerRepository.save(ledger);
         return ResponseEntity.ok("Category created successfully");
     }
+
     @PostMapping("/{parentId}/create-subcategory")
     @Transactional
     @PreAuthorize("isAuthenticated()")
@@ -81,18 +80,39 @@ public class LedgerCategoryController {
         if (user == null ) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized access");
         }
+
+        if(parentId == null){
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Must provide parentId");
+        }
         LedgerCategory parent = ledgerCategoryRepository.findById(parentId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Parent category not found"));
         if (parent.getParent() != null) {
             return ResponseEntity.badRequest().body("Parent must be a Category");
         }
+        if(ledgerId == null){
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Must provide ledgerId");
+        }
         Ledger ledger=ledgerRepository.findById(ledgerId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Ledger not found"));
+
+        if(name == null || name.trim().isEmpty()){
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Name cannot be empty");
+        }
+        if(name.length() > 100){
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Name too long");
+        }
+        if(ledgerCategoryRepository.existsByLedgerAndName(ledger, name)){
+            return ResponseEntity.status(HttpStatus.CONFLICT).body("SubCategory name must be unique within the ledger");
+        }
+
         LedgerCategory newSubCategory = new LedgerCategory(name, type, ledger);
         newSubCategory.setParent(parent);
-        parent.addChild(newSubCategory);
-        ledgerCategoryRepository.save(parent);
+        parent.getChildren().add(newSubCategory);
+        //parent.addChild(newSubCategory);
         ledgerCategoryRepository.save(newSubCategory);
+        ledger.getCategories().add(newSubCategory);
+        ledgerRepository.save(ledger);
+        ledgerCategoryRepository.save(parent);
         return ResponseEntity.ok("SubCategory created successfully");
     }
 
@@ -133,13 +153,14 @@ public class LedgerCategoryController {
             return ResponseEntity.badRequest().body("Cannot demote category with subcategories");
         }
         category.setParent(parent);
-        parent.addChild(category);
+        parent.getChildren().add(category);
 
         ledgerCategoryRepository.save(category);
         ledgerCategoryRepository.save(parent);
 
         return ResponseEntity.ok("Demoted successfully");
     }
+
     @PutMapping("/{id}/promote")
     @Transactional
     @PreAuthorize("isAuthenticated()")
@@ -160,7 +181,7 @@ public class LedgerCategoryController {
             return ResponseEntity.badRequest().body("Must be a SubCategory");
         }
 
-        parent.removeChild(category);
+        parent.getChildren().remove(category);
         category.setParent(null);
         ledgerCategoryRepository.save(category);
         ledgerCategoryRepository.save(parent);
@@ -187,7 +208,6 @@ public class LedgerCategoryController {
             return ResponseEntity.badRequest().body("Cannot delete category with subcategories");
         }
 
-
         List<Budget> budgetsToDelete = new ArrayList<>(category.getBudgets());
         for (Budget b : budgetsToDelete) {
             budgetRepository.delete(b);
@@ -206,7 +226,7 @@ public class LedgerCategoryController {
             for (Transaction tx : transactionsToMigrate) {
                 category.getTransactions().remove(tx);
                 tx.setCategory(migrateToCategory);
-                migrateToCategory.addTransaction(tx);
+                migrateToCategory.getTransactions().add(tx);
                 transactionRepository.save(tx);
             }
             ledgerCategoryRepository.save(migrateToCategory);
@@ -238,7 +258,7 @@ public class LedgerCategoryController {
         }
         if(category.getParent() != null){
             LedgerCategory parent=category.getParent();
-            parent.removeChild(category);
+            parent.getChildren().remove(category);
             category.setParent(null);
             ledgerCategoryRepository.save(parent);
         }
@@ -249,7 +269,7 @@ public class LedgerCategoryController {
         ledgerRepository.save(ledger);
 
         ledgerCategoryRepository.delete(category);
-        return ResponseEntity.ok("Category deleted successfully");
+        return ResponseEntity.ok("Deleted successfully");
     }
 
     @PutMapping("/{id}/rename")
@@ -268,9 +288,27 @@ public class LedgerCategoryController {
         LedgerCategory category = ledgerCategoryRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Category not found"));
 
+        if(newName == null || newName.trim().isEmpty()){
+            return ResponseEntity.badRequest().body("new name cannot be null");
+        }
+
+        if(ledgerCategoryRepository.existsByLedgerAndName(category.getLedger(), newName)){
+            if(ledgerCategoryRepository.findByLedgerAndName(category.getLedger(), newName).getId() != category.getId()){
+                return ResponseEntity.status(HttpStatus.CONFLICT).body("new name exists already");
+            }else{
+                return ResponseEntity.ok("Renamed successfully");
+            }
+        }
+
+        if(newName.length() > 100) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Name too long");
+        }
+
         category.setName(newName);
         ledgerCategoryRepository.save(category);
-        return ResponseEntity.ok("Category renamed successfully");
+
+
+        return ResponseEntity.ok("Renamed successfully");
     }
 
     @PutMapping("/{id}/change-parent")
@@ -299,13 +337,13 @@ public class LedgerCategoryController {
             return ResponseEntity.badRequest().body("New parent must be a Category");
         }
         if(category.getParent() == null){
-            return ResponseEntity.badRequest().body("Category must be a SubCategory");
+            return ResponseEntity.badRequest().body("Must be a SubCategory");
         }
 
         LedgerCategory oldParent = category.getParent();
-        oldParent.removeChild(category);
+        oldParent.getChildren().remove(category);
         category.setParent(newParent);
-        newParent.addChild(category);
+        newParent.getChildren().add(category);
 
         ledgerCategoryRepository.save(oldParent);
         ledgerCategoryRepository.save(newParent);
