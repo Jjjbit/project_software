@@ -8,4 +8,5 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface LedgerCategoryRepository extends JpaRepository<LedgerCategory, Long> {
     LedgerCategory findByLedgerAndName(Ledger ledger, String name);
+    boolean existsByLedgerAndName(Ledger ledger, String name);
 }
