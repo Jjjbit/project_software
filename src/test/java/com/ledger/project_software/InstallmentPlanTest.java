@@ -58,6 +58,7 @@ public class InstallmentPlanTest {
                 AccountType.CREDIT_CARD);
         accountRepository.save(testAccount);
         testUser.getAccounts().add(testAccount);
+        userRepository.save(testUser);
     }
 
     @Test
