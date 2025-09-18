@@ -46,6 +46,9 @@ public class User {
 
     }
 
+    public List<Budget> getBudget() {
+        return budgets;
+    }
     public void setUsername(String username) {
         this.username = username;
     }
