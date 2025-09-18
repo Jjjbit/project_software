@@ -11,7 +11,7 @@ import java.time.temporal.ChronoUnit;
 public class Budget {
 
     public enum Period {
-        WEEKLY, MONTHLY, YEARLY
+        MONTHLY, YEARLY
     }
 
     @Id
@@ -48,10 +48,12 @@ public class Budget {
         return switch (period) {
             case YEARLY -> LocalDate.of(today.getYear(), 1, 1);
             case MONTHLY -> LocalDate.of(today.getYear(), today.getMonth(), 1);
-            case WEEKLY -> today.with(DayOfWeek.SUNDAY);
         };
     }
 
+    public Long getId() {
+        return id;
+    }
     public BigDecimal getAmount() {
         return amount;
     }
@@ -73,7 +75,6 @@ public class Budget {
         return switch (p) {
             case MONTHLY -> txDate.getYear() == startDate.getYear()
                     && txDate.getMonth() == startDate.getMonth();
-            case WEEKLY -> ChronoUnit.WEEKS.between(startDate, txDate) == 0;
             case YEARLY -> txDate.getYear() == startDate.getYear();
         };
     }
@@ -84,7 +85,6 @@ public class Budget {
     public boolean isInPeriod(LocalDate date) {
         return switch (period) {
             case MONTHLY -> date.isBefore(startDate.plusMonths(1));
-            case WEEKLY -> date.isBefore(startDate.plusWeeks(1));
             case YEARLY -> date.isBefore(startDate.plusYears(1));
         };
     }
