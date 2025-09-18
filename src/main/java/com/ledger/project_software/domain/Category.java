@@ -41,27 +41,5 @@ public class Category {
     public Category getParent() { return parent; }
     public void setParent(Category parent) { this.parent = parent; }
     public List<Category> getChildren() { return children; }
-    public void addChild(Category child) {
-        children.add(child);
-        child.setParent(this);
-    }
-    public void removeChild(Category child) {
-        children.remove(child);
-        child.setParent(null);
-    }
-    public void promote(){
-        if(this.parent != null){
-            this.parent.removeChild(this);
-            this.parent = null;
-        }
-    }
-    public void demote(Category parent){
-        if(this.parent == null){
-            if(this.children.isEmpty()){
-                this.parent = parent;
-                parent.addChild(this);
-            }
-        }
-    }
 
 }
