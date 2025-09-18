@@ -105,7 +105,7 @@ public class TransactionTest {
         Assertions.assertTrue(updatedCategory.getTransactions().contains(createdTransaction));
 
         User updatedUser=userRepository.findById(testUser.getId()).orElse(null);
-        Assertions.assertEquals(0, updatedUser.calculateTotalAssets().compareTo(BigDecimal.valueOf(850)));
+        Assertions.assertEquals(0, updatedUser.getTotalAssets().compareTo(BigDecimal.valueOf(850)));
     }
 
     @Test
@@ -138,7 +138,7 @@ public class TransactionTest {
         Assertions.assertTrue(updatedCategory.getTransactions().contains(createdTransaction));
 
         User updatedUser = userRepository.findById(testUser.getId()).orElse(null);
-        Assertions.assertEquals(0, updatedUser.calculateTotalAssets().compareTo(BigDecimal.valueOf(1200)));
+        Assertions.assertEquals(0, updatedUser.getTotalAssets().compareTo(BigDecimal.valueOf(1200)));
     }
 
     @Test
@@ -185,7 +185,7 @@ public class TransactionTest {
         Assertions.assertTrue(updatedLedger.getTransactions().contains(createdTransaction));
 
         User updatedUser = userRepository.findById(testUser.getId()).orElse(null);
-        Assertions.assertEquals(0, updatedUser.calculateTotalAssets().compareTo(BigDecimal.valueOf(1500)));
+        Assertions.assertEquals(0, updatedUser.getTotalAssets().compareTo(BigDecimal.valueOf(1500)));
     }
 
     @Test
@@ -223,7 +223,7 @@ public class TransactionTest {
         Assertions.assertFalse(updatedLedger.getTransactions().contains(tx1));
 
         User updatedUser = userRepository.findById(testUser.getId()).orElse(null);
-        Assertions.assertEquals(0, updatedUser.calculateTotalAssets().compareTo(BigDecimal.valueOf(1000)));
+        Assertions.assertEquals(0, updatedUser.getTotalAssets().compareTo(BigDecimal.valueOf(1000)));
 
         LedgerCategory updatedCategory=ledgerCategoryRepository.findById(testCategory1.getId()).orElse(null);
         Assertions.assertFalse(updatedCategory.getTransactions().contains(tx1));
@@ -265,7 +265,7 @@ public class TransactionTest {
         Assertions.assertFalse(updatedLedger.getTransactions().contains(tx1));
 
         User updatedUser = userRepository.findById(testUser.getId()).orElse(null);
-        Assertions.assertEquals(0, updatedUser.calculateTotalAssets().compareTo(BigDecimal.valueOf(1000)));
+        Assertions.assertEquals(0, updatedUser.getTotalAssets().compareTo(BigDecimal.valueOf(1000)));
 
         LedgerCategory updatedCategory=ledgerCategoryRepository.findById(testCategory2.getId()).orElse(null);
         Assertions.assertFalse(updatedCategory.getTransactions().contains(tx1));
@@ -322,7 +322,7 @@ public class TransactionTest {
         Assertions.assertFalse(updatedLedger.getTransactions().contains(tx1));
 
         User updatedUser = userRepository.findById(testUser.getId()).orElse(null);
-        Assertions.assertEquals(0, updatedUser.calculateTotalAssets().compareTo(BigDecimal.valueOf(1500)));
+        Assertions.assertEquals(0, updatedUser.getTotalAssets().compareTo(BigDecimal.valueOf(1500)));
 
         LedgerCategory updatedCategory=ledgerCategoryRepository.findById(testCategory2.getId()).orElse(null);
         Assertions.assertFalse(updatedCategory.getTransactions().contains(tx1));
@@ -370,7 +370,7 @@ public class TransactionTest {
 
 
         User updatedUser = userRepository.findById(testUser.getId()).orElse(null);
-        Assertions.assertEquals(0, updatedUser.calculateTotalAssets().compareTo(BigDecimal.valueOf(850)));
+        Assertions.assertEquals(0, updatedUser.getTotalAssets().compareTo(BigDecimal.valueOf(850)));
 
     }
 
@@ -533,7 +533,7 @@ public class TransactionTest {
         assert (updatedAccount.getBalance().compareTo(BigDecimal.valueOf(1250)) == 0);
 
         User updatedUser = userRepository.findById(testUser.getId()).orElse(null);
-        Assertions.assertEquals(0, updatedUser.calculateTotalAssets().compareTo(BigDecimal.valueOf(1250)));
+        Assertions.assertEquals(0, updatedUser.getTotalAssets().compareTo(BigDecimal.valueOf(1250)));
 
     }
 
