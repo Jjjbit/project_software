@@ -3,9 +3,8 @@ package com.ledger.project_software.domain;
 import jakarta.persistence.*;
 
 import java.math.BigDecimal;
-import java.time.DayOfWeek;
 import java.time.LocalDate;
-import java.time.temporal.ChronoUnit;
+import java.time.YearMonth;
 
 @Entity
 public class Budget {
@@ -36,6 +35,9 @@ public class Budget {
     @Column(name = "start_date", nullable = false)
     private LocalDate startDate;
 
+    @Column(name = "end_date", nullable = false)
+    private LocalDate endDate;
+
     public Budget(){}
     public Budget(BigDecimal amount, Period period, LedgerCategory category, User owner) {
         this.amount = amount;
@@ -43,14 +45,29 @@ public class Budget {
         this.category = category;
         this.owner = owner;
         this.startDate = getStartDateForPeriod(LocalDate.now(), this.period);
+        this.endDate = getEndDateForPeriod(this.startDate, this.period);
     }
-    public static LocalDate getStartDateForPeriod(LocalDate today, Period period) {
-        return switch (period) {
-            case YEARLY -> LocalDate.of(today.getYear(), 1, 1);
+    public static LocalDate getStartDateForPeriod(LocalDate today, Period budgetPeriod) {
+        return switch (budgetPeriod) {
+            case YEARLY -> LocalDate.of(today.getYear(), 11, 1);
             case MONTHLY -> LocalDate.of(today.getYear(), today.getMonth(), 1);
         };
     }
+    public static LocalDate getEndDateForPeriod(LocalDate startDate, Period period) {
+        return switch (period) {
+            case YEARLY -> LocalDate.of(startDate.getYear(), 12, 31);
+            case MONTHLY -> YearMonth.from(startDate).atEndOfMonth();
+        };
+    }
 
+
+    public void setCategory(LedgerCategory category) {
+        this.category = category;
+    }
+
+    public void setAmount(BigDecimal amount) {
+        this.amount = amount;
+    }
     public Long getId() {
         return id;
     }
