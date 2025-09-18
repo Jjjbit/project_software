@@ -45,18 +45,6 @@ public class LedgerCategory {
     }
 
 
-    public void addChild(LedgerCategory child) {
-        children.add(child);
-        child.setParent(this);
-    }
-    public void removeChild(LedgerCategory child) {
-        children.remove(child);
-        child.setParent(null);
-    }
-
-    public void addTransaction(Transaction tx) {
-        transactions.add(tx);
-    }
 
     // --- Getter/Setter ---
     public Long getId() { return id; }
