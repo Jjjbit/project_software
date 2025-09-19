@@ -37,6 +37,9 @@ public class InstallmentPlan {
     @JoinColumn(name = "linked_account_id")
     private Account linkedAccount;
 
+    @Column(name = "remaining_amount", precision = 15, scale = 2)
+    private BigDecimal remainingAmount;
+
     public InstallmentPlan() {}
     public InstallmentPlan(BigDecimal totalAmount,
                            int totalPeriods,
@@ -50,6 +53,14 @@ public class InstallmentPlan {
         this.paidPeriods = paidPeriods;
         this.feeStrategy = feeStrategy;
         this.linkedAccount = linkedAccount;
+        this.remainingAmount = getRemainingAmountWithRepaidPeriods();
+    }
+
+    public BigDecimal getRemainingAmount() {
+        return remainingAmount;
+    }
+    public void setRemainingAmount(BigDecimal remainingAmount) {
+        this.remainingAmount = remainingAmount;
     }
     public Account getLinkedAccount() {
         return linkedAccount;
@@ -120,36 +131,28 @@ public class InstallmentPlan {
     }
 
     public void repayOnePeriod() {
-        if (paidPeriods < totalPeriods) {
-            BigDecimal amountToPay = getMonthlyPayment(paidPeriods + 1);
-            linkedAccount.debit(amountToPay); // Debit the amount from the linked account
-            paidPeriods++;
-        } else {
-            throw new IllegalStateException("All periods have already been paid.");
-        }
+        BigDecimal monthlyPayment = getMonthlyPayment(paidPeriods + 1);
+        remainingAmount = remainingAmount.subtract(monthlyPayment).setScale(2, RoundingMode.HALF_UP);
+        paidPeriods++;
     }
     public void repayPartial(BigDecimal amount) {
-        if (paidPeriods < totalPeriods) {
-            linkedAccount.debit(amount); // Debit the partial amount from the linked account
-            //how many monthly payments does this cover?
-            BigDecimal paidAmount = BigDecimal.ZERO;
-            int periods = 0;
-            for(int i = paidPeriods + 1; i <= totalPeriods; i++) {
-                BigDecimal monthlyRepayment = getMonthlyPayment(i);
-                if(paidAmount.add(monthlyRepayment).compareTo(amount) <= 0) {
-                    paidAmount = paidAmount.add(monthlyRepayment);
-                    periods++;
-                } else {
-                    break;
-                }
+        //how many monthly payments does this cover?
+        BigDecimal paidAmount = BigDecimal.ZERO;
+        int periods = 0;
+        for(int i = paidPeriods + 1; i <= totalPeriods; i++) {
+            BigDecimal monthlyRepayment = getMonthlyPayment(i);
+            if(paidAmount.add(monthlyRepayment).compareTo(amount) <= 0) {
+                paidAmount = paidAmount.add(monthlyRepayment);
+                periods++;
+            } else {
+                break;
             }
-            paidPeriods += periods;
-        } else {
-            throw new IllegalStateException("All periods have already been paid.");
         }
+        paidPeriods += periods;
+        remainingAmount=remainingAmount.subtract(amount).setScale(2, RoundingMode.HALF_UP);
     }
 
-    public BigDecimal getRemainingAmount() {
+    public BigDecimal getRemainingAmountWithRepaidPeriods() {//dipende da paidPeriods
         BigDecimal total = BigDecimal.ZERO;
         for (int i = paidPeriods + 1; i <= totalPeriods; i++) {
             total = total.add(getMonthlyPayment(i));
