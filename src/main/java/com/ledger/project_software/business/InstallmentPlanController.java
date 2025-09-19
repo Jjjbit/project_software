@@ -1,9 +1,6 @@
 package com.ledger.project_software.business;
 
-import com.ledger.project_software.Repository.AccountRepository;
-import com.ledger.project_software.Repository.InstallmentPlanRepository;
-import com.ledger.project_software.Repository.LedgerRepository;
-import com.ledger.project_software.Repository.UserRepository;
+import com.ledger.project_software.Repository.*;
 import com.ledger.project_software.domain.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -29,6 +26,8 @@ public class InstallmentPlanController {
     private UserRepository userRepository;
     @Autowired
     private LedgerRepository ledgerRepository;
+    @Autowired
+    private TransactionRepository transactionRepository;
 
     @PostMapping("/create")
     @Transactional
@@ -257,12 +256,12 @@ public class InstallmentPlanController {
                 amount,
                 ledger
         );
+        transactionRepository.save(tx);
         account.debit(amount);
         account.getOutgoingTransactions().add(tx);
         account.setCurrentDebt(account.getCurrentDebt().subtract(amount).setScale(2, RoundingMode.HALF_UP));
         if(ledger != null){
             ledger.getTransactions().add(tx);
-            ledgerRepository.save(ledger);
         }
         installmentPlanRepository.save(installmentPlan);
         accountRepository.save(account);

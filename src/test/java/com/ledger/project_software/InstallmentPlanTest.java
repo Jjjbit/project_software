@@ -1,9 +1,6 @@
 package com.ledger.project_software;
 
-import com.ledger.project_software.Repository.AccountRepository;
-import com.ledger.project_software.Repository.InstallmentPlanRepository;
-import com.ledger.project_software.Repository.LedgerRepository;
-import com.ledger.project_software.Repository.UserRepository;
+import com.ledger.project_software.Repository.*;
 import com.ledger.project_software.domain.*;
 import jakarta.transaction.Transactional;
 import org.junit.jupiter.api.Assertions;
@@ -41,6 +38,8 @@ public class InstallmentPlanTest {
     private InstallmentPlanRepository installmentPlanRepository;
     @Autowired
     private LedgerRepository ledgerRepository;
+    @Autowired
+    private TransactionRepository transactionRepository;
 
     @BeforeEach
     public void setUp() {
@@ -302,6 +301,8 @@ public class InstallmentPlanTest {
 
         User updatedUser = userRepository.findById(testUser.getId()).orElse(null);
         Assertions.assertEquals(0, updatedUser.getTotalLiabilities().compareTo(BigDecimal.valueOf(1001)));
+
+        Assertions.assertEquals(1, transactionRepository.findAll().size());
     }
 
     @Test
