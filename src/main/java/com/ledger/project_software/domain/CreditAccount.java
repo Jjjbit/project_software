@@ -125,9 +125,4 @@ public class CreditAccount extends Account {
         installmentPlans.remove(installmentPlan);
         currentDebt = currentDebt.subtract(installmentPlan.getRemainingAmountWithRepaidPeriods()).setScale(2, RoundingMode.HALF_UP);
     }
-    public void repayInstallmentPlan(InstallmentPlan installmentPlan){
-        BigDecimal amount = installmentPlan.getMonthlyPayment(installmentPlan.getPaidPeriods() + 1);
-        currentDebt = currentDebt.subtract(amount).setScale(2, RoundingMode.HALF_UP);
-
-    }
 }
