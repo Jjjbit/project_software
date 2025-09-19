@@ -2,6 +2,7 @@ package com.ledger.project_software;
 
 import com.ledger.project_software.Repository.AccountRepository;
 import com.ledger.project_software.Repository.InstallmentPlanRepository;
+import com.ledger.project_software.Repository.LedgerRepository;
 import com.ledger.project_software.Repository.UserRepository;
 import com.ledger.project_software.domain.*;
 import jakarta.transaction.Transactional;
@@ -38,6 +39,8 @@ public class InstallmentPlanTest {
     private CreditAccount testAccount;
     @Autowired
     private InstallmentPlanRepository installmentPlanRepository;
+    @Autowired
+    private LedgerRepository ledgerRepository;
 
     @BeforeEach
     public void setUp() {
@@ -256,5 +259,84 @@ public class InstallmentPlanTest {
 
         User updatedUser = userRepository.findById(testUser.getId()).orElse(null);
         Assertions.assertEquals(0, updatedUser.getTotalLiabilities().compareTo(BigDecimal.ZERO));
+    }
+
+    @Test
+    @WithMockUser(username = "Alice")
+    public void testRepayOnePeriod() throws Exception {
+        InstallmentPlan plan = new InstallmentPlan(
+                BigDecimal.valueOf(1200),
+                12,
+                BigDecimal.valueOf(0.1),
+                1,
+                InstallmentPlan.FeeStrategy.EVENLY_SPLIT,
+                testAccount
+        ); ////1201.2-100.1=1101.1
+        installmentPlanRepository.save(plan);
+        testAccount.addInstallmentPlan(plan);
+        accountRepository.save(testAccount);
+
+        Ledger testLedger =new Ledger("Test Ledger", testUser);
+        ledgerRepository.save(testLedger);
+        testUser.getLedgers().add(testLedger);
+        userRepository.save(testUser);
+
+        mockMvc.perform(put("/installment-plans/" + plan.getId() + "/repay")
+                        .principal(() -> "Alice")
+                        .param("creditAccountId", String.valueOf(testAccount.getId()))
+                        .param("ledgerId", String.valueOf(testLedger.getId())))
+                        .andExpect(status().isOk())
+                        .andExpect(content().string("Installment plan repaid successfully"));
+
+        InstallmentPlan updatedPlan = installmentPlanRepository.findById(plan.getId()).orElse(null);
+        Assertions.assertEquals(2, updatedPlan.getPaidPeriods());
+        Assertions.assertEquals(0, updatedPlan.getRemainingAmount().compareTo(BigDecimal.valueOf(1001)));
+
+        CreditAccount updatedAccount = (CreditAccount) accountRepository.findById(testAccount.getId()).orElse(null);
+        Assertions.assertEquals(0, updatedAccount.getCurrentDebt().compareTo(BigDecimal.valueOf(1001)));
+        Assertions.assertEquals(1, updatedAccount.getOutgoingTransactions().size());
+        Assertions.assertEquals(0, updatedAccount.getBalance().compareTo(BigDecimal.valueOf(899.9)));
+
+        Ledger updatedLedger=ledgerRepository.findById(testLedger.getId()).orElse(null);
+        Assertions.assertEquals(1, updatedLedger.getTransactions().size());
+
+        User updatedUser = userRepository.findById(testUser.getId()).orElse(null);
+        Assertions.assertEquals(0, updatedUser.getTotalLiabilities().compareTo(BigDecimal.valueOf(1001)));
+    }
+
+    @Test
+    @WithMockUser(username = "Alice")
+    public void testRepayPartialAmount() throws Exception {
+        InstallmentPlan plan = new InstallmentPlan(
+                BigDecimal.valueOf(1200),
+                12,
+                BigDecimal.valueOf(0.1),
+                1,
+                InstallmentPlan.FeeStrategy.EVENLY_SPLIT,
+                testAccount
+        );
+        installmentPlanRepository.save(plan);
+        testAccount.addInstallmentPlan(plan);
+        accountRepository.save(testAccount);
+
+        mockMvc.perform(put("/installment-plans/" + plan.getId() + "/repay")
+                        .principal(() -> "Alice")
+                        .param("creditAccountId", String.valueOf(testAccount.getId()))
+                        .param("amount", "150"))
+                .andExpect(status().isOk())
+                .andExpect(content().string("Installment plan repaid successfully"));
+
+        InstallmentPlan updatedPlan = installmentPlanRepository.findById(plan.getId()).orElse(null);
+        Assertions.assertEquals(2, updatedPlan.getPaidPeriods());
+        Assertions.assertEquals(0, updatedPlan.getRemainingAmount().compareTo(BigDecimal.valueOf(951.1)));
+
+        CreditAccount updatedAccount = (CreditAccount) accountRepository.findById(testAccount.getId()).orElse(null);
+        Assertions.assertEquals(0, updatedAccount.getCurrentDebt().compareTo(BigDecimal.valueOf(951.1)));
+        Assertions.assertEquals(1, updatedAccount.getOutgoingTransactions().size());
+        Assertions.assertEquals(0, updatedAccount.getBalance().compareTo(BigDecimal.valueOf(850)));
+
+        User updatedUser = userRepository.findById(testUser.getId()).orElse(null);
+        Assertions.assertEquals(0, updatedUser.getTotalLiabilities().compareTo(BigDecimal.valueOf(951.1)));
+
     }
 }

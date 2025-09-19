@@ -2,11 +2,9 @@ package com.ledger.project_software.business;
 
 import com.ledger.project_software.Repository.AccountRepository;
 import com.ledger.project_software.Repository.InstallmentPlanRepository;
+import com.ledger.project_software.Repository.LedgerRepository;
 import com.ledger.project_software.Repository.UserRepository;
-import com.ledger.project_software.domain.Account;
-import com.ledger.project_software.domain.CreditAccount;
-import com.ledger.project_software.domain.InstallmentPlan;
-import com.ledger.project_software.domain.User;
+import com.ledger.project_software.domain.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -18,6 +16,7 @@ import org.springframework.web.server.ResponseStatusException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.security.Principal;
+import java.time.LocalDate;
 
 @RestController
 @RequestMapping("/installment-plans")
@@ -28,6 +27,8 @@ public class InstallmentPlanController {
     private AccountRepository accountRepository;
     @Autowired
     private UserRepository userRepository;
+    @Autowired
+    private LedgerRepository ledgerRepository;
 
     @PostMapping("/create")
     @Transactional
@@ -122,6 +123,7 @@ public class InstallmentPlanController {
         if (feeStrategy != null){
             installmentPlan.setFeeStrategy(feeStrategy);
         }
+        installmentPlan.setRemainingAmount(installmentPlan.getRemainingAmountWithRepaidPeriods());
         if (linkedAccountId != null){// change linked account
             Account creditAccount = accountRepository.findById(linkedAccountId)
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Linked account not found"));
@@ -188,5 +190,83 @@ public class InstallmentPlanController {
         return ResponseEntity.ok("installment plan deleted successfully");
     }
 
+
+    @PutMapping("{id}/repay")
+    @Transactional
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<String> repayInstallmentPlan(@PathVariable Long id,
+                                                       @RequestParam Long creditAccountId,
+                                                       Principal principal,
+                                                       @RequestParam (required = false) BigDecimal amount,
+                                                       @RequestParam (required = false) Long ledgerId) {
+        if(principal == null){
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized access");
+        }
+        User user = userRepository.findByUsername(principal.getName());
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized access");
+        }
+
+        CreditAccount account = (CreditAccount) accountRepository.findById(creditAccountId).orElse(null);
+        if (account == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Credit account not found");
+        }
+        InstallmentPlan installmentPlan = installmentPlanRepository.findById(id).orElse(null);
+        if (installmentPlan == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Installment plan not found");
+        }
+
+        if (!account.getOwner().equals(user)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("You cannot repay someone else's installment plan");
+        }
+
+        if (!account.getInstallmentPlans().contains(installmentPlan)) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Installment plan does not belong to this account");
+        }
+
+
+        Ledger ledger=null;
+        if(ledgerId != null) {
+            ledger= ledgerRepository.findById(ledgerId).orElse(null);
+        }
+        if(installmentPlan.getPaidPeriods() >= installmentPlan.getTotalPeriods()){
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Installment plan already fully paid");
+        }
+        if(installmentPlan.getRemainingAmount().compareTo(BigDecimal.ZERO)<=0){
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Installment plan already fully paid");
+        }
+
+        if(amount == null){ //pay one period
+            amount=installmentPlan.getMonthlyPayment(installmentPlan.getPaidPeriods() + 1);
+            installmentPlan.repayOnePeriod(); // incrementa paid periods di 1 e decrementa remaining amount
+        }else{
+            if(amount.compareTo(BigDecimal.ZERO)<=0){
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Amount must be positive");
+            }
+            if(amount.compareTo(installmentPlan.getRemainingAmount())>0){
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Amount exceeds remaining amount of the installment plan");
+            }
+
+            installmentPlan.repayPartial(amount);// decrementa remaining amount e incrementa paid periods
+        }
+        Transaction tx = new Transfer(
+                LocalDate.now(),
+                "Repay installment plan",
+                account,
+                null,
+                amount,
+                ledger
+        );
+        account.debit(amount);
+        account.getOutgoingTransactions().add(tx);
+        account.setCurrentDebt(account.getCurrentDebt().subtract(amount).setScale(2, RoundingMode.HALF_UP));
+        if(ledger != null){
+            ledger.getTransactions().add(tx);
+            ledgerRepository.save(ledger);
+        }
+        installmentPlanRepository.save(installmentPlan);
+        accountRepository.save(account);
+        return ResponseEntity.ok("Installment plan repaid successfully");
+    }
 
 }
