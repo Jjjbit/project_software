@@ -36,10 +36,6 @@ public abstract class Account {
     @JoinColumn(name = "owner_id", nullable = false)
     protected User owner;
 
-    //@JoinColumn(name = "currency_id")
-    //@Transient
-    //protected Currency currency;
-
     @Column(length = 500)
     protected String notes;
 
@@ -73,7 +69,6 @@ public abstract class Account {
         this.type = type;
         this.category = category;
         this.owner = owner;
-        //this.currency = currency;
         this.notes = notes;
         this.includedInNetAsset = includedInNetAsset;
         this.selectable = selectable;
@@ -81,17 +76,11 @@ public abstract class Account {
 
     public void credit(BigDecimal amount) {
         balance = balance.add(amount);
-        owner.updateTotalAssets();
-        owner.updateNetAsset();
     }
     public abstract void debit(BigDecimal amount);
     public void hide() {
         this.hidden = true;
-        this.owner.updateTotalAssets();
-        this.owner.updateNetAsset();
-        this.owner.updateTotalLiabilities();
     }
-
 
     public void setIncludedInNetAsset(boolean includedInNetAsset) {
         this.includedInNetAsset =includedInNetAsset;
@@ -102,9 +91,6 @@ public abstract class Account {
     public void setOwner(User owner) {
         this.owner = owner;
     }
-    /*public void setCurrencyCode(Currency currency) {
-        this.currency = currency;
-    }*/
     public void setId(Long id) {
         this.id = id;
     }
@@ -119,8 +105,6 @@ public abstract class Account {
             throw new IllegalArgumentException("Balance cannot be negative.");
         }
         this.balance = balance;
-        this.owner.updateTotalAssets();
-        this.owner.updateNetAsset();
     }
 
     public AccountType getType() { return type; }
@@ -133,7 +117,7 @@ public abstract class Account {
     public User getOwner() {
         return owner;
     }
-    private List<Transaction> getTransactions() {
+    public List<Transaction> getTransactions() {
         List<Transaction> allTransactions = new ArrayList<>();
         allTransactions.addAll(incomingTransactions);
         allTransactions.addAll(outgoingTransactions);
@@ -163,21 +147,36 @@ public abstract class Account {
     public Boolean getIncludedInNetAsset() {
         return includedInNetAsset;
     }
+
     public void addTransaction(Transaction transaction) { //for test
         if(transaction instanceof Income){
-            incomingTransactions.add(transaction);
+            if ( !this.hidden && this.selectable) {
+                credit(transaction.getAmount());
+                incomingTransactions.add(transaction);
+            }
         } else if (transaction instanceof Expense) {
-            outgoingTransactions.add(transaction);
-        } else if (transaction instanceof Transfer) {
+            if (!this.hidden && this.selectable) {
+                if (! this.category.equals(AccountCategory.CREDIT) && this.balance.compareTo(transaction.getAmount()) <= 0) {
+                    throw new IllegalArgumentException("Insufficient funds in the account to execute this transaction.");
+                }
+                debit(transaction.getAmount());
+                outgoingTransactions.add(transaction);
+            }
 
+        } else if (transaction instanceof Transfer) {
             if ((transaction.getFromAccount() != null && transaction.getFromAccount().equals(this))) {
+                if (! this.category.equals(AccountCategory.CREDIT) && this.balance.compareTo(transaction.getAmount()) <= 0) {
+                    throw new IllegalArgumentException("Insufficient funds in the account to execute this transaction.");
+                }
+                debit(transaction.getAmount());
                 outgoingTransactions.add(transaction);
             }
             if (transaction.getToAccount() != null &&  transaction.getToAccount().equals(this)) {
+                credit(transaction.getAmount());
                 incomingTransactions.add(transaction);
             }
         }
-        transaction.execute();
+        //transaction.execute();
     }
 
 
