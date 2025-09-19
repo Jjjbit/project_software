@@ -183,7 +183,7 @@ public class LedgerController {
         if (owner == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized access");
         }
-        if(ledger.getOwner().getId() != owner.getId()) {
+        if(!ledger.getOwner().getId().equals(owner.getId())) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body("You do not have permission to copy this ledger");
         }
 
@@ -245,13 +245,13 @@ public class LedgerController {
         }
 
         if(ledgerRepository.findByName(newName) != null) {
-            if(ledgerRepository.findByName(newName).getId() != ledgerId) {//se il nome esiste ma appartiene ad un altro ledger
+            if(!ledgerRepository.findByName(newName).getId().equals(ledgerId)) {//se il nome esiste ma appartiene ad un altro ledger
                 return ResponseEntity.status(HttpStatus.CONFLICT).body("Ledger name already exists");
             }else{
                 return ResponseEntity.ok("Ledger renamed successfully");
             }
         }
-        if(ledger.getOwner().getId() != owner.getId()) {
+        if(!ledger.getOwner().getId().equals(owner.getId())) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body("You do not have permission to rename this ledger");
         }
         if(newName == null || newName.trim().isEmpty()) {

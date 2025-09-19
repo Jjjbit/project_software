@@ -293,7 +293,7 @@ public class LedgerCategoryController {
         }
 
         if(ledgerCategoryRepository.existsByLedgerAndName(category.getLedger(), newName)){
-            if(ledgerCategoryRepository.findByLedgerAndName(category.getLedger(), newName).getId() != category.getId()){
+            if(!ledgerCategoryRepository.findByLedgerAndName(category.getLedger(), newName).getId().equals(category.getId())){
                 return ResponseEntity.status(HttpStatus.CONFLICT).body("new name exists already");
             }else{
                 return ResponseEntity.ok("Renamed successfully");
