@@ -59,8 +59,6 @@ public abstract class Transaction {
         this.category = category;
         this.type = type;
     }
-    public abstract void execute();
-    public abstract void rollback();
     public LedgerCategory getCategory() {
         return category;
     }

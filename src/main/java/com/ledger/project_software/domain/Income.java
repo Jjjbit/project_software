@@ -14,23 +14,4 @@ public class Income extends Transaction {
     }
 
     public Income() {}
-
-    @Override
-    public void execute() {
-        if (!fromAccount.hidden && fromAccount.selectable) {
-            fromAccount.credit(amount);
-        }
-        fromAccount.getOwner().updateTotalAssets();
-        fromAccount.getOwner().updateTotalLiabilities();
-        fromAccount.getOwner().updateNetAsset();
-    }
-
-    @Override
-    public void rollback(){
-        fromAccount.debit(amount);
-        fromAccount.getOwner().updateTotalAssets();
-        fromAccount.getOwner().updateTotalLiabilities();
-        fromAccount.getOwner().updateNetAsset();
-    }
-
 }
