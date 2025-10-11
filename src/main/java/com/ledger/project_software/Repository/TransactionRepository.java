@@ -52,4 +52,6 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
                                               @Param("endDate") LocalDate endDate);
 
     List<Transaction> findByAccountIdAndOwnerId(Long accountId, Long ownerId, LocalDate start, LocalDate end);
+
+    List<Transaction> findByLedgerIdAndOwnerId(Long ledgerId, Long ownerId, LocalDate start, LocalDate end);
 }
