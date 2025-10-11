@@ -3,6 +3,7 @@ package com.ledger.project_software.domain;
 import jakarta.persistence.*;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 
 @Entity
@@ -26,10 +27,13 @@ public class LendingAccount extends Account {
         this.date = date;
     }
 
+    public void receiveRepayment(Transaction tx, BigDecimal amount){
+        balance = balance.subtract(amount).setScale(2, RoundingMode.HALF_UP);
+        outgoingTransactions.add(tx);
+        checkAndUpdateStatus();
+    }
+
     public void receiveRepayment(BigDecimal amount, Account toAccount, Ledger ledger) {
-        if (toAccount != null) {
-            toAccount.credit(amount);
-        }
         String description;
         if (toAccount != null) {
             description = name + " to " + toAccount.getName();
@@ -44,7 +48,7 @@ public class LendingAccount extends Account {
                 amount,
                 ledger
         );
-        this.balance = this.balance.subtract(amount);
+        this.balance = this.balance.subtract(amount).setScale(2, RoundingMode.HALF_UP);
         this.getOutgoingTransactions().add(tx);
         if (toAccount != null) {
             toAccount.credit(amount);
@@ -60,13 +64,14 @@ public class LendingAccount extends Account {
     }
     @Override
     public void credit(BigDecimal amount) {
-        this.balance = this.balance.add(amount);
+        this.balance = this.balance.add(amount).setScale(2, RoundingMode.HALF_UP);
     }
 
     @Override
     public void debit(BigDecimal amount) {
-        this.balance = this.balance.subtract(amount);
+        this.balance = this.balance.subtract(amount).setScale(2, RoundingMode.HALF_UP);
     }
+
     public void checkAndUpdateStatus() {
         if(balance.compareTo(BigDecimal.ZERO) <= 0) {
             this.isEnded = true;
