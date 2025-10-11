@@ -1,5 +1,6 @@
 package com.ledger.project_software.domain;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
 
 import java.math.BigDecimal;
@@ -30,6 +31,7 @@ public class Budget {
 
     @ManyToOne
     @JoinColumn(name = "owner_id", nullable = false)
+    @JsonBackReference("user-budgets")
     private User owner; // User ID or name
 
     @Column(name = "start_date", nullable = false)
