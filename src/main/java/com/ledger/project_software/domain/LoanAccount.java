@@ -41,6 +41,12 @@ public class LoanAccount extends Account {
     @Enumerated(EnumType.STRING)
     private RepaymentType repaymentType;
 
+    @Column(name = "remaining_amount", precision = 15, scale = 2)
+    private BigDecimal remainingAmount;
+
+    @Column(name = "is_ended", nullable = false)
+    protected boolean isEnded = false;
+
     public LoanAccount() {
         super();
         this.type = AccountType.LOAN;
@@ -58,22 +64,19 @@ public class LoanAccount extends Account {
             Account receivingAccount,
             LocalDate repaymentDate,
             RepaymentType repaymentType) {
-        super(name, null, AccountType.LOAN, AccountCategory.CREDIT, owner, note, includedInNetWorth, false);
+        super(name, BigDecimal.ZERO, AccountType.LOAN, AccountCategory.CREDIT, owner, note, includedInNetWorth, false);
         this.totalPeriods = totalPeriods;
         this.repaidPeriods = repaidPeriods;
         this.annualInterestRate = interestRate;
         this.loanAmount = loanAmount;
         this.receivingAccount = receivingAccount;
-        if(receivingAccount !=null){
-            receivingAccount.credit(loanAmount);
-        }
         this.repaymentDay = repaymentDate;
         if (repaymentType==null){
             this.repaymentType = RepaymentType.EQUAL_INTEREST;
         }else{
             this.repaymentType = repaymentType;
         }
-        this.owner.addAccount(this);
+        this.remainingAmount= calculateRemainingLoanAmountWithRepaidPeriods();
     }
 
     public void setTotalPeriods(int totalPeriods) {
@@ -109,6 +112,12 @@ public class LoanAccount extends Account {
         this.repaymentType = repaymentType;
     }
     public LocalDate getRepaymentDay(){return this.repaymentDay;}
+    public void updateRemainingAmount() { //metodo per aggiornare remainingAmount se si cambia loanAmount, totalPeriods, repaidPeriods o annualInterestRate
+        this.remainingAmount = calculateRemainingLoanAmountWithRepaidPeriods();
+    }
+    public BigDecimal getRemainingAmount() {
+        return remainingAmount;
+    }
 
 
     @Override
@@ -131,25 +140,115 @@ public class LoanAccount extends Account {
                 .divide(BigDecimal.valueOf(12), 10, RoundingMode.HALF_UP);
     }
 
-    public void repayLoan(Account fromAccount) {
-        BigDecimal monthlyRepayment = getMonthlyRepayment(repaidPeriods + 1);
-        if(fromAccount != null) {
-            fromAccount.debit(monthlyRepayment);
-        }else {
-            this.owner.updateNetAssetsAndLiabilities(monthlyRepayment);
-        }
-        this.repaidPeriods++;
-        this.owner.updateTotalAssets();
-        this.owner.updateTotalLiabilities();
-        this.owner.updateNetAsset();
+    public void repayLoan(Transaction tx){ //pay one period
+        this.repaidPeriods = this.repaidPeriods + 1;
+        this.remainingAmount= remainingAmount.subtract(getMonthlyRepayment(repaidPeriods)).setScale(2, RoundingMode.HALF_UP);
+        incomingTransactions.add(tx);
+        checkAndUpdateStatus();
     }
-    public BigDecimal getRemainingAmount() {
+
+    public void repayLoan(Transaction tx, BigDecimal amount){//partial payment
+        //calculate how many periods are repaid
+        BigDecimal paidAmount = BigDecimal.ZERO;
+        int periodsPaid = 0;
+        for (int i = repaidPeriods + 1; i <= totalPeriods; i++) {
+            BigDecimal monthlyRepayment = getMonthlyRepayment(i);
+            if (paidAmount.add(monthlyRepayment).compareTo(amount) <= 0) {
+                paidAmount = paidAmount.add(monthlyRepayment);
+                periodsPaid++;
+            } else {
+                break;
+            }
+        }
+        this.repaidPeriods += periodsPaid;
+        remainingAmount = remainingAmount.subtract(amount).setScale(2, RoundingMode.HALF_UP); //remainingAmount dipende da amount pagato
+        if (remainingAmount.compareTo(BigDecimal.ZERO) < 0) {
+            remainingAmount = BigDecimal.ZERO;
+        }
+        incomingTransactions.add(tx);
+        checkAndUpdateStatus();
+    }
+    public void repayLoan(Account fromAccount, Ledger ledger) { //for test
+        if(remainingAmount.compareTo(BigDecimal.ZERO) >=0) {
+
+            Transaction repaymentTransaction = new Transfer(
+                    LocalDate.now(),
+                    "Loan Repayment",
+                    fromAccount,
+                    this,
+                    getMonthlyRepayment(repaidPeriods + 1),
+                    ledger
+            );
+            incomingTransactions.add(repaymentTransaction);
+
+            if (ledger != null){
+                ledger.getTransactions().add(repaymentTransaction);
+            }
+            if(fromAccount != null){
+                fromAccount.debit(getMonthlyRepayment(repaidPeriods + 1));
+                fromAccount.outgoingTransactions.add(repaymentTransaction);
+            }
+
+            this.repaidPeriods = this.repaidPeriods + 1;
+            this.remainingAmount= remainingAmount.subtract(getMonthlyRepayment(repaidPeriods)).setScale(2, RoundingMode.HALF_UP);
+
+            checkAndUpdateStatus();
+        }else{
+            throw new IllegalStateException("All periods have already been paid.");
+        }
+    }
+    public void repayLoan(Account fromAccount, BigDecimal amount, Ledger ledger){ //for test
+        if(remainingAmount.compareTo(BigDecimal.ZERO) >=0 && repaidPeriods < totalPeriods) {
+            Transaction repaymentTransaction = new Transfer(
+                    LocalDate.now(),
+                    "Loan Partial Repayment",
+                    fromAccount,
+                    this,
+                    amount,
+                    ledger
+            );
+            incomingTransactions.add(repaymentTransaction);
+            if (ledger != null){
+                ledger.getTransactions().add(repaymentTransaction);
+            }
+            if(fromAccount != null){
+                fromAccount.debit(amount);
+                fromAccount.outgoingTransactions.add(repaymentTransaction);
+            }
+            //calculate how many periods are repaid
+            BigDecimal paidAmount = BigDecimal.ZERO;
+            int periodsPaid = 0;
+            for (int i = repaidPeriods + 1; i <= totalPeriods; i++) {
+                BigDecimal monthlyRepayment = getMonthlyRepayment(i);
+                if (paidAmount.add(monthlyRepayment).compareTo(amount) <= 0) {
+                    paidAmount = paidAmount.add(monthlyRepayment);
+                    periodsPaid++;
+                } else {
+                    break;
+                }
+            }
+            this.repaidPeriods += periodsPaid;
+            remainingAmount = remainingAmount.subtract(amount).setScale(2, RoundingMode.HALF_UP); //remainingAmount dipende da amount pagato
+            if (remainingAmount.compareTo(BigDecimal.ZERO) < 0) {
+                remainingAmount = BigDecimal.ZERO;
+            }
+            checkAndUpdateStatus();
+        }else{
+            throw new IllegalStateException("All periods have already been paid.");
+        }
+    }
+
+    public BigDecimal calculateRemainingLoanAmountWithRepaidPeriods() { //dipende da repaidPeriods
+        if(repaidPeriods==0 && annualInterestRate.compareTo(BigDecimal.ZERO)==0){
+            return loanAmount;
+        }
         BigDecimal total = BigDecimal.ZERO;
         for (int i = repaidPeriods + 1; i <= totalPeriods; i++) {
             total = total.add(getMonthlyRepayment(i));
         }
         return total.setScale(2, RoundingMode.HALF_UP);
     }
+
     //monthly rate r: annualInterestRate / 12
     // total periods n: totalPeriods
     // loan amount P: loanAmount
@@ -257,6 +356,14 @@ public class LoanAccount extends Account {
         // In the last period, the full loan amount is repaid along with the last interest
         BigDecimal finalPayment = loanAmount.add(monthlyInterest); //finalPayment=loanAmount+monthlyInterest
         return interestBeforeFinal.add(finalPayment).setScale(2, RoundingMode.HALF_UP); // total repayment=interestBeforeFinal+finalPayment
+    }
+    public void checkAndUpdateStatus() {
+        if(remainingAmount.compareTo(BigDecimal.ZERO) <= 0) {
+            this.isEnded = true;
+            this.remainingAmount = BigDecimal.ZERO;
+        } else {
+            this.isEnded = false;
+        }
     }
 
 }
