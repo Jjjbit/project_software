@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -71,16 +72,7 @@ public class CreditAccount extends Account {
 
     @Override
     public void debit(BigDecimal amount) {
-        if (amount.compareTo(balance) > 0) { //amount>balance
-            if (currentDebt.add(amount.subtract(balance)).compareTo(creditLimit) > 0) { //currentDebt+(amount-balance)>creditLimit
-                throw new IllegalArgumentException("Amount exceeds credit limit");
-            } else {
-                currentDebt = currentDebt.add(amount.subtract(balance)).setScale(2, RoundingMode.HALF_UP);
-                balance = BigDecimal.ZERO;
-            }
-        } else {
-            balance = balance.subtract(amount).setScale(2, RoundingMode.HALF_UP);
-        }
+        balance = balance.subtract(amount).setScale(2, RoundingMode.HALF_UP);
     }
 
     public void repayDebt(Transaction tx){
@@ -90,7 +82,7 @@ public class CreditAccount extends Account {
             currentDebt = BigDecimal.ZERO;
         }
     }
-    /*public void repayDebt(BigDecimal amount, Account fromAccount, Ledger ledger) {
+    public void repayDebt(BigDecimal amount, Account fromAccount, Ledger ledger) { //for test
         Transaction tx = new Transfer(
                 LocalDate.now(),
                 "Repay credit account debt",
@@ -108,11 +100,11 @@ public class CreditAccount extends Account {
             fromAccount.debit(amount);
             fromAccount.outgoingTransactions.add(tx);
         }
-        currentDebt = currentDebt.subtract(amount).setScale(2, BigDecimal.ROUND_HALF_UP);
+        currentDebt = currentDebt.subtract(amount).setScale(2, RoundingMode.HALF_UP);
         if (currentDebt.compareTo(BigDecimal.ZERO) < 0) {
             currentDebt = BigDecimal.ZERO;
         }
-    }*/
+    }
 
     public List<InstallmentPlan> getInstallmentPlans() {
         return installmentPlans;
@@ -124,5 +116,27 @@ public class CreditAccount extends Account {
     public void removeInstallmentPlan(InstallmentPlan installmentPlan) {
         installmentPlans.remove(installmentPlan);
         currentDebt = currentDebt.subtract(installmentPlan.getRemainingAmountWithRepaidPeriods()).setScale(2, RoundingMode.HALF_UP);
+    }
+
+    public void repayInstallmentPlan(InstallmentPlan installmentPlan, Ledger ledger) { //for test
+        if (installmentPlans.contains(installmentPlan)) {
+            BigDecimal amount = installmentPlan.getMonthlyPayment(installmentPlan.getPaidPeriods() + 1);
+            installmentPlan.repayOnePeriod();
+            Transaction tx = new Transfer(
+                    LocalDate.now(),
+                    "Repay installment plan",
+                    this,
+                    null,
+                    amount,
+                    ledger
+            );
+            outgoingTransactions.add(tx);
+            if(ledger != null) {
+                ledger.getTransactions().add(tx);
+            }
+            currentDebt = currentDebt.subtract(amount).setScale(2, RoundingMode.HALF_UP);
+        } else {
+            throw new IllegalArgumentException("Installment plan not found in this account");
+        }
     }
 }
