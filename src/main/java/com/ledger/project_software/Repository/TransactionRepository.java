@@ -6,12 +6,16 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import javax.swing.text.html.Option;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface TransactionRepository extends JpaRepository<Transaction, Long> {
+    //total expense for user in period
     @Query("SELECT COALESCE(SUM(t.amount), 0) FROM Transaction t " +
             "WHERE t.ledger IN (SELECT l FROM Ledger l WHERE l.owner.id = :userId) " +
             "AND t.type = 'EXPENSE' " +
@@ -22,7 +26,7 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
                                           @Param("endDate") LocalDate endDate);
 
 
-    //expense for single category
+    //expense for single subcategory
     @Query("SELECT COALESCE(SUM(t.amount), 0) FROM Transaction t " +
             "WHERE t.ledger.owner.id = :userId " +
             "AND t.type = 'EXPENSE' " +
@@ -46,4 +50,6 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
                                               @Param("categoryIds") List<Long> categoryIds,
                                               @Param("startDate") LocalDate startDate,
                                               @Param("endDate") LocalDate endDate);
+
+    List<Transaction> findByAccountIdAndOwnerId(Long accountId, Long ownerId, LocalDate start, LocalDate end);
 }
