@@ -1,5 +1,6 @@
 package com.ledger.project_software.domain;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
 
 import java.math.BigDecimal;
@@ -19,6 +20,7 @@ public class Ledger {
 
     @ManyToOne
     @JoinColumn(name = "owner_id")
+    @JsonBackReference("user-ledgers")
     private User owner;
 
     @OneToMany(mappedBy = "ledger", cascade = CascadeType.ALL, orphanRemoval = true)
