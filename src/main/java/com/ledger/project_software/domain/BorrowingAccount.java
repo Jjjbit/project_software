@@ -3,6 +3,7 @@ package com.ledger.project_software.domain;
 import jakarta.persistence.*;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 
 @Entity
@@ -29,42 +30,17 @@ public class BorrowingAccount extends Account{
     public void setBorrowingDate(LocalDate date){this.date=date;}
     @Override
     public void credit(BigDecimal amount) {
-        this.balance = this.balance.subtract(amount);
+        this.balance = this.balance.subtract(amount).setScale(2, RoundingMode.HALF_UP);
     }
 
     @Override
     public void debit(BigDecimal amount) {
-        this.balance = this.balance.add(amount);
+        this.balance = this.balance.add(amount).setScale(2, RoundingMode.HALF_UP);
     }
 
-    public void repay(BigDecimal amount, Account fromAccount, Ledger ledger) {
-        if(fromAccount != null){
-            fromAccount.debit(amount); //decrementa il balance dell'account
-        }
-        String description;
-        if(fromAccount != null) {
-            description = fromAccount.getName() + "to" + name;
-        } else {
-            description = "External account to " + name;
-        }
-        Transaction tx = new Transfer(
-                LocalDate.now(),
-                description,
-                fromAccount,
-                this,
-                amount,
-                ledger
-        );
-        balance = balance.subtract(amount); //decrementa il balance del borrowing
-        this.getIncomingTransactions().add(tx); //aggiunge la transazione alla lista delle transazioni in entrata del borrowing
-        if(fromAccount != null) {
-            fromAccount.debit(amount); //decrementa il balance dell'account
-            fromAccount.getOutgoingTransactions().add(tx); //aggiunge la transazione alla lista delle transazioni in uscita dell'account
-        }
-        if(ledger != null) {
-            ledger.getTransactions().add(tx); //aggiunge la transazione alla lista delle transazioni del ledger
-        }
-        // controlla se il borrowing è stato completamente rimborsato
+    public void repay(Transaction tx, BigDecimal amount){
+        balance = balance.subtract(amount).setScale(2, RoundingMode.HALF_UP);
+        incomingTransactions.add(tx);
         checkAndUpdateStatus();
     }
 
