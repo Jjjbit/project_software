@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.security.Principal;
 import java.time.LocalDate;
 import java.time.YearMonth;
@@ -26,8 +27,6 @@ public class AccountController {
     private UserRepository userRepository;
     @Autowired
     private TransactionRepository transactionRepository;
-    @Autowired
-    private InstallmentPlanRepository installmentPlanRepository;
     @Autowired
     private LedgerRepository ledgerRepository;
 
@@ -197,6 +196,11 @@ public class AccountController {
         if(amount.compareTo(BigDecimal.ZERO) <= 0){
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Balance cannot be negative");
         }
+
+        if(name== null){
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Name cannot be null");
+        }
+
         BorrowingAccount borrowingAccount = new BorrowingAccount(
                 name,
                 amount,
@@ -232,8 +236,9 @@ public class AccountController {
         accountRepository.save(borrowingAccount);
         user.getAccounts().add(borrowingAccount);
         userRepository.save(user);
-        return ResponseEntity.ok("Borrowing added successfully");
+        return ResponseEntity.ok("Borrowing account created successfully");
     }
+
     @PostMapping("/create-lending-account")
     @Transactional
     @PreAuthorize("isAuthenticated()")
@@ -241,10 +246,10 @@ public class AccountController {
                                                        Principal principal,
                                                        @RequestParam BigDecimal balance,
                                                        @RequestParam String note,
-                                                       @RequestParam boolean includeInNetWorth,
-                                                       @RequestParam boolean selected,
+                                                       @RequestParam boolean includeInAssets,
+                                                       @RequestParam boolean selectable,
                                                        @RequestParam (required = false) Long fromAccountId,
-                                                       @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+                                                       @RequestParam (required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
         if (principal == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized access");
         }
@@ -265,12 +270,17 @@ public class AccountController {
         if (balance.compareTo(BigDecimal.ZERO) < 0) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Balance cannot be negative");
         }
+
+        if(name== null){
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Name cannot be null");
+        }
+
         LendingAccount lendingAccount = new LendingAccount(
                 name,
                 balance,
                 note,
-                includeInNetWorth,
-                selected,
+                includeInAssets,
+                selectable,
                 user,
                 date != null ? date : LocalDate.now());
 
@@ -289,19 +299,20 @@ public class AccountController {
                 balance,
                 null //ledger
         );
-
+        transactionRepository.save(initialTransaction);
 
         lendingAccount.getIncomingTransactions().add(initialTransaction);
         accountRepository.save(lendingAccount);
+
         if(fromAccount != null){
             fromAccount.debit(balance);
             fromAccount.getOutgoingTransactions().add(initialTransaction);
             accountRepository.save(fromAccount);
         }
-        transactionRepository.save(initialTransaction);
+
         user.getAccounts().add(lendingAccount);
         userRepository.save(user);
-        return ResponseEntity.ok("Lending added successfully");
+        return ResponseEntity.ok("Lending account created successfully");
     }
 
 
@@ -588,6 +599,105 @@ public class AccountController {
         return ResponseEntity.ok("Loan account edited successfully");
     }
 
+    @PutMapping("/{id}/edit-borrowing-account")
+    @Transactional
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<String> editBorrowingAccount(@PathVariable Long id,
+                                                       Principal principal,
+                                                       @RequestParam (required = false) String name,
+                                                       @RequestParam (required = false) BigDecimal balance,
+                                                       @RequestParam (required = false) String notes,
+                                                       @RequestParam (required = false) Boolean includedInNetAsset,
+                                                       @RequestParam (required = false) Boolean selectable,
+                                                       @RequestParam (required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+        if (principal == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized access");
+        }
+        User user = userRepository.findByUsername(principal.getName());
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized access");
+        }
+
+        Account account = accountRepository.findById(id).orElse(null);
+        if (account == null ) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Borrowing account not found");
+        }
+        if(!account.getOwner().getId().equals(user.getId())){
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Borrowing account does not belong to the authenticated user");
+        }
+        if( !(account instanceof BorrowingAccount) ) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Account is not a borrowing account");
+        }
+        if( balance != null ) {
+            if (balance.compareTo(BigDecimal.ZERO) < 0) {
+                return ResponseEntity.badRequest().body("Balance must be non-negative");
+            }
+            account.setBalance(balance);
+        }
+        if(name != null) {
+            account.setName(name);
+        }
+        if(notes != null) {
+            account.setNotes(notes);
+        }
+        if(includedInNetAsset != null) {
+            account.setIncludedInNetAsset(includedInNetAsset);
+        }
+        if(selectable != null) {
+            account.setSelectable(selectable);
+        }
+        if(date != null) {
+            ((BorrowingAccount) account).setBorrowingDate(date);
+        }
+        ((BorrowingAccount) account).checkAndUpdateStatus(); // aggiorna lo stato del borrowing
+        accountRepository.save(account);
+        return ResponseEntity.ok("Borrowing account updated successfully");
+    }
+
+    @PutMapping("/{id}/edit-lending-account")
+    @Transactional
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<String> editLendingAccount(@PathVariable Long id,
+                                                    Principal principal,
+                                                    @RequestParam (required = false) String name,
+                                                    @RequestParam (required = false) BigDecimal balance,
+                                                    @RequestParam (required = false) String note,
+                                                    @RequestParam (required = false) Boolean includedInNetAsset,
+                                                    @RequestParam (required = false) Boolean selectable,
+                                                    @RequestParam (required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+        if (principal == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized access");
+        }
+        User user = userRepository.findByUsername(principal.getName());
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized access");
+        }
+        Account account = accountRepository.findById(id).orElse(null);
+        if(account == null){
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("LendingAccount not found");
+        }
+        if(!account.getOwner().getId().equals(user.getId())){
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("LendingAccount does not belong to the user");
+        }
+        if(!( account instanceof LendingAccount)){
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Account is not a LendingAccount");
+        }
+        if( balance != null ) {
+            if (balance.compareTo(BigDecimal.ZERO) < 0) {
+                return ResponseEntity.badRequest().body("Balance must be non-negative");
+            }
+            account.setBalance(balance);
+        }
+        if(name != null){account.setName(name);}
+        if(note != null) {account.setNotes(note);}
+        if(includedInNetAsset != null) {account.setIncludedInNetAsset(includedInNetAsset);}
+        if(selectable != null) {account.setSelectable(selectable);}
+        if(date != null) {((LendingAccount) account).setLendingDate(date);}
+        ((LendingAccount) account).checkAndUpdateStatus();
+        accountRepository.save(account);
+        return ResponseEntity.ok("LendingAccount updated successfully");
+    }
+
 
     @PutMapping("/{id}/credit")
     @Transactional
@@ -611,9 +721,16 @@ public class AccountController {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body("You cannot credit someone else's account");
         }
 
-        if(account instanceof LoanAccount){
+        if( account instanceof LoanAccount){
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Cannot credit a loan account");
         }
+        if(account.getSelectable() == false){
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Cannot credit a non-selectable account");
+        }
+        if(amount.compareTo(BigDecimal.ZERO) <= 0){
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Amount must be greater than zero");
+        }
+
 
         account.credit(amount);
         accountRepository.save(account);
@@ -644,6 +761,29 @@ public class AccountController {
         if(account instanceof LoanAccount){
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Cannot debit a loan account");
         }
+        if(account.getSelectable() == false){
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Cannot debit a non-selectable account");
+        }
+        if(amount.compareTo(BigDecimal.ZERO) <= 0){
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Amount must be greater than zero");
+        }
+        if( account instanceof CreditAccount){
+            if (amount.compareTo(account.getBalance()) > 0) { //amount>balance
+                if (((CreditAccount) account).getCurrentDebt().add(amount.subtract(account.getBalance())).compareTo(((CreditAccount) account).getCreditLimit()) > 0) { //currentDebt+(amount-balance)>creditLimit
+                    return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Amount exceeds credit limit");
+                } else {
+                    ((CreditAccount) account).setCurrentDebt(((CreditAccount) account).getCurrentDebt().add(amount.subtract(account.getBalance())).setScale(2, RoundingMode.HALF_UP));
+                    account.setBalance(BigDecimal.ZERO);
+                    accountRepository.save(account);
+                    return ResponseEntity.ok("debit account");
+                }
+            }
+        }else{
+            if (amount.compareTo(account.getBalance()) > 0) { //amount>balance
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Insufficient funds");
+            }
+        }
+
         account.debit(amount);
         accountRepository.save(account);
         return ResponseEntity.ok("debit account");
@@ -667,10 +807,14 @@ public class AccountController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized access");
         }
 
-        CreditAccount creditAccount = (CreditAccount) accountRepository.findById(id).orElse(null);
+        Account creditAccount = accountRepository.findById(id).orElse(null);
         if (creditAccount == null) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Credit account not found");
         }
+        if( !(creditAccount instanceof CreditAccount) ){
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Account is not a credit account");
+        }
+
         Account fromAccount = (fromAccountId != null) ? accountRepository.findById(fromAccountId)
                 .orElse(null) : null;
 
@@ -687,13 +831,17 @@ public class AccountController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Amount must be greater than zero");
         }
 
-        Ledger ledger= (ledgerId != null) ? ledgerRepository.findById(ledgerId)
-                .orElseThrow(()-> new ResponseStatusException(HttpStatus.NOT_FOUND, "Ledger not found")): null;
-        if (!ledger.getOwner().getId().equals(user.getId())) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Ledger does not belong to the user");
+        Ledger ledger=null;
+        if(ledgerId != null) {
+            ledger=ledgerRepository.findById(ledgerId).orElse(null);
+            if(ledger == null){
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Ledger not found");
+            }
+            if(!ledger.getOwner().getId().equals(user.getId())){
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Ledger does not belong to the authenticated user");
+            }
         }
 
-        //creditAccount.repayDebt(amount, fromAccount, ledger);
         Transaction tx = new Transfer(
                 LocalDate.now(),
                 "Repay credit account debt",
@@ -702,7 +850,8 @@ public class AccountController {
                 amount,
                 ledger
         );
-        creditAccount.repayDebt(tx);
+        transactionRepository.save(tx);
+        ((CreditAccount) creditAccount).repayDebt(tx); // aggiorna currentDebt e aggiunge la transazione
         accountRepository.save(creditAccount);
 
         if (fromAccount != null) {
@@ -712,60 +861,8 @@ public class AccountController {
         }
         if(ledger != null){
             ledger.getTransactions().add(tx);
-            ledgerRepository.save(ledger);
         }
         return ResponseEntity.ok("Debt repaid successfully");
-    }
-
-    //CreditAccount
-    @PutMapping("{id}/repay-installment-plan")
-    @Transactional
-    @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<String> repayInstallmentPlan(@PathVariable Long id,
-                                                       @RequestParam Long installmentPlanId,
-                                                       Principal principal,
-                                                       @RequestParam (required = false) BigDecimal amount,
-                                                       @RequestParam (required = false) Long ledgerId) {
-        if(principal == null){
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized access");
-        }
-        User user = userRepository.findByUsername(principal.getName());
-        if (user == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized access");
-        }
-
-        CreditAccount account = (CreditAccount) accountRepository.findById(id).orElse(null);
-        if (account == null) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Credit account not found");
-        }
-        InstallmentPlan installmentPlan = installmentPlanRepository.findById(installmentPlanId).orElse(null);
-        if (installmentPlan == null) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Installment plan not found");
-        }
-
-        if (!account.getOwner().equals(user)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("You cannot repay someone else's installment plan");
-        }
-
-        if (!account.getInstallmentPlans().contains(installmentPlan)) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Installment plan does not belong to this account");
-        }
-        Ledger ledger=null;
-        if(ledgerId != null) {
-            ledger= ledgerRepository.findById(ledgerId).orElse(null);
-        }
-
-        if(amount != null){
-            account.repayInstallmentPlan(installmentPlan, amount, ledger);
-        }else {
-            account.repayInstallmentPlan(installmentPlan, ledger);
-        }
-        if(ledger != null){
-            ledgerRepository.save(ledger);
-        }
-
-        accountRepository.save(account);
-        return ResponseEntity.ok("Installment plan repaid successfully");
     }
 
     //LoanAccount
@@ -781,9 +878,12 @@ public class AccountController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized access");
         }
 
-        LoanAccount loanAccount = (LoanAccount) accountRepository.findById(id).orElse(null);
+        Account loanAccount = accountRepository.findById(id).orElse(null);
         if (loanAccount == null) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Loan account not found");
+        }
+        if( !(loanAccount instanceof LoanAccount) ){
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Account is not a loan account");
         }
 
         Account fromAccount = (fromAccountId != null) ? accountRepository.findById(fromAccountId).orElse(null) : null;
@@ -793,46 +893,272 @@ public class AccountController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized access");
         }
 
+        if (!loanAccount.getOwner().getId().equals(owner.getId())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("You cannot repay someone else's loan");
+        }
+
         Ledger ledger=null;
         if(ledgerId != null) {
             ledger=ledgerRepository.findById(ledgerId).orElse(null);
+            if(ledger == null){
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Ledger not found");
+            }
+            if(!ledger.getOwner().getId().equals(owner.getId())){
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Ledger does not belong to the authenticated user");
+            }
         }
+
+        LoanAccount loanAcc = (LoanAccount) loanAccount;
+
+        if(loanAcc.getRepaidPeriods() >= loanAcc.getTotalPeriods()){
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Loan is already fully repaid");
+        }
+
+        if(amount==null){
+            amount=loanAcc.getMonthlyRepayment(loanAcc.getRepaidPeriods() +1);
+        }else{
+            if(amount.compareTo(BigDecimal.ZERO) <= 0){
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Amount must be greater than zero");
+            }
+            if(amount.compareTo(loanAcc.getRemainingAmount()) > 0){
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Amount exceeds remaining loan amount");
+            }
+        }
+
+        Transaction repaymentTransaction = new Transfer(
+                LocalDate.now(),
+                "Loan Repayment",
+                fromAccount,
+                loanAcc,
+                amount,
+                ledger
+        );
+        transactionRepository.save(repaymentTransaction);
 
         if(amount != null){
-            loanAccount.repayLoan(fromAccount, amount, ledger);
+            loanAcc.repayLoan(repaymentTransaction, amount); //aggiorna remainingAmount e repaidPeriods
         }else{
-            loanAccount.repayLoan(fromAccount, ledger);
+            loanAcc.repayLoan(repaymentTransaction); //aggiorna remainingAmount e repaidPeriods
+        }
+        accountRepository.save(loanAcc);
+
+        if (fromAccount != null) {
+            if(!fromAccount.getOwner().getId().equals(owner.getId())){
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body("You cannot use someone else's account to repay the loan");
+            }
+            fromAccount.debit(amount);
+            fromAccount.getOutgoingTransactions().add(repaymentTransaction);
+            accountRepository.save(fromAccount);
         }
 
-        accountRepository.save(loanAccount);
-        if (fromAccount != null) {
+        if(ledger != null){
+            ledger.getTransactions().add(repaymentTransaction);
+        }
+
+        return ResponseEntity.ok("Loan repaid successfully");
+    }
+
+    //BorrowingAccount
+    @PutMapping("/{id}/repay-borrowing")
+    @Transactional
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<String> repayBorrowing(@PathVariable Long id,
+                                                 @RequestParam (required = false) Long fromAccountId,
+                                                 @RequestParam BigDecimal amount,
+                                                 @RequestParam (required = false) Long ledgerId,
+                                                 Principal principal) {
+        if(principal == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized access");
+        }
+        User user = userRepository.findByUsername(principal.getName());
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized access");
+        }
+        Account borrowingAccount = accountRepository.findById(id).orElse(null);
+        if (borrowingAccount == null ) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Borrowing account not found");
+        }
+        if( !(borrowingAccount instanceof BorrowingAccount) ) {
+            return ResponseEntity.badRequest().body("Account is not a borrowing account");
+        }
+        if(!borrowingAccount.getOwner().getId().equals(user.getId())){
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Borrowing account does not belong to the authenticated user");
+        }
+        if (amount.compareTo(BigDecimal.ZERO) <= 0) {
+            return ResponseEntity.badRequest().body("Amount must be positive");
+        }
+        if(borrowingAccount.getBalance().compareTo(BigDecimal.ZERO) <= 0){
+            return ResponseEntity.badRequest().body("Borrowing account is already closed");
+        }
+        Account fromAccount = null;
+        if (fromAccountId != null) {
+            fromAccount = accountRepository.findById(fromAccountId)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "fromAccount not found"));
+
+            if (!fromAccount.getOwner().getId().equals(user.getId())) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body("fromAccount does not belong to the authenticated user");
+            }
+        }
+
+        Ledger ledger = null;
+        if(ledgerId != null){
+            ledger=ledgerRepository.findById(ledgerId)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Ledger not found"));
+            if(!ledger.getOwner().getId().equals(user.getId())){
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Ledger does not belong to the authenticated user");
+            }
+        }
+
+        String description;
+        if(fromAccount != null) {
+            description = fromAccount.getName() + "to" + borrowingAccount.getName();
+        } else {
+            description = "External account to " + borrowingAccount.getName();
+        }
+
+        Transaction tx = new Transfer(
+                LocalDate.now(),
+                description,
+                fromAccount,
+                borrowingAccount,
+                amount,
+                ledger
+        );
+        transactionRepository.save(tx);
+        ((BorrowingAccount) borrowingAccount).repay(tx, amount); //aggiorna il balance del borrowingAccount e aggiunge la transazione
+        accountRepository.save(borrowingAccount);
+
+        if(fromAccount != null){
+            fromAccount.debit(amount); //decrementa il balance dell'account
+            fromAccount.getOutgoingTransactions().add(tx);
             accountRepository.save(fromAccount);
         }
         if(ledger != null){
-            ledgerRepository.save(ledger);
+            ledger.getTransactions().add(tx);
         }
-        return ResponseEntity.ok("Loan repaid successfully");
+        return ResponseEntity.ok("Repayment successful");
+    }
+
+    //LendingAccount
+    @PutMapping("/{id}/receive-lending")
+    @Transactional
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<String> receiveLending(@PathVariable Long id,
+                                                   Principal principal,
+                                                   @RequestParam BigDecimal amount,
+                                                   @RequestParam (required = false) Long toAccountId,
+                                                   @RequestParam (required = false) Long ledgerId){
+        if(principal == null){
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized access");
+        }
+        User user=userRepository.findByUsername(principal.getName());
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized access");
+        }
+        Account lendingAccount = accountRepository.findById(id).orElse(null);
+        if(lendingAccount == null){
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("LendingAccount not found");
+        }
+        if(!lendingAccount.getOwner().getId().equals(user.getId())){
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("LendingAccount does not belong to the user");
+        }
+        if(!( lendingAccount instanceof LendingAccount)){
+            return ResponseEntity.badRequest().body("Account is not a LendingAccount");
+        }
+        if(amount.compareTo(BigDecimal.ZERO) <= 0){
+            return ResponseEntity.badRequest().body("Amount must be positive");
+        }
+        Ledger ledger = null;
+        if(ledgerId != null){
+            ledger=ledgerRepository.findById(ledgerId)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Ledger not found"));
+            if(!ledger.getOwner().getId().equals(user.getId())){
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Ledger does not belong to the authenticated user");
+            }
+        }
+
+        Account toAccount = null;
+        if(toAccountId != null){
+            toAccount = accountRepository.findById(toAccountId)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "toAccount not found"));
+
+            if(!toAccount.getOwner().getId().equals(user.getId())){
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body("toAccount does not belong to the authenticated user");
+            }
+        }
+
+        String description;
+        if (toAccount != null) {
+            description = lendingAccount.getName() + " to " + toAccount.getName();
+        } else {
+            description = lendingAccount.getName() + " to External account";
+        }
+        Transaction tx = new Transfer(
+                LocalDate.now(),
+                description,
+                lendingAccount,
+                toAccount,
+                amount,
+                ledger
+        );
+        transactionRepository.save(tx);
+        ((LendingAccount) lendingAccount).receiveRepayment(tx, amount); //aggiorna il balance del lendingAccount e aggiunge la transazione
+        accountRepository.save(lendingAccount);
+
+        if(toAccount != null){
+            toAccount.credit(amount); //incrementa il balance dell'account
+            toAccount.getIncomingTransactions().add(tx);
+            accountRepository.save(toAccount);
+        }
+        if(ledger != null){
+            ledger.getTransactions().add(tx);
+        }
+        return ResponseEntity.ok("Lending received successfully");
+    }
+
+    @GetMapping("all-accounts")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<List <Account>> getAllAccounts(Principal principal) {
+        if(principal == null){
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        User user = userRepository.findByUsername(principal.getName());
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        List<Account> accounts = accountRepository.findByOwner(user);
+        return ResponseEntity.ok(accounts);
     }
 
 
 
-    @GetMapping("{id}/get-transacitons-for-month")
+    @GetMapping("{id}/get-transactions-for-month")
     @PreAuthorize("isAuthenticated()")
-    public List<Transaction> getAccountTransactionsForMonth(@PathVariable Long id,
-                                                            @RequestParam YearMonth month,
-                                                            Principal principal) {
+    public ResponseEntity<List<Transaction>> getAccountTransactionsForMonth(@PathVariable Long id,
+                                                                            @RequestParam @DateTimeFormat(pattern = "yyyy-MM") YearMonth month,
+                                                                            Principal principal) {
         if(principal == null){
-            throw new IllegalArgumentException("Unauthorized access");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
+
         Account account = accountRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Account not found"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Account not found"));
+
         User user = userRepository.findByUsername(principal.getName());
         if (user == null) {
-            throw new IllegalArgumentException("Unauthorized access");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
         if (!account.getOwner().getId().equals(user.getId())) {
-            throw new IllegalArgumentException("You cannot view transactions of someone else's account");
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
-        return account.getTransactionsForMonth(month);
+
+        List<Transaction> transactions = transactionRepository.findByAccountIdAndOwnerId(
+                id,
+                user.getId(),
+                month.atDay(1),
+                month.atEndOfMonth());
+
+        return ResponseEntity.ok(transactions);
     }
 }
