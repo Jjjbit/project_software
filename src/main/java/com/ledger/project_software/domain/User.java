@@ -1,8 +1,10 @@
 package com.ledger.project_software.domain;
 
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -21,12 +23,15 @@ public class User {
     private String password;
 
     @OneToMany(mappedBy = "owner",cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonManagedReference("user-ledgers")
     private List<Ledger> ledgers= new ArrayList<>();
 
     @OneToMany(mappedBy = "owner", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonManagedReference("user-accounts")
     private List<Account> accounts= new ArrayList<>();
 
     @OneToMany(mappedBy = "owner", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonManagedReference("user-budgets")
     private List<Budget> budgets= new ArrayList<>();
 
     @Column(name = "total_assets", precision = 15, scale = 2, nullable = true)
@@ -115,16 +120,18 @@ public class User {
 
     public BigDecimal getTotalAssets() {
         BigDecimal totalBalance = accounts.stream()
-                .filter(account -> !account.getType().equals(AccountType.LOAN))
+                .filter(account -> !(account instanceof LoanAccount))
+                .filter(account -> !(account instanceof BorrowingAccount))
+                .filter(account -> !(account instanceof LendingAccount))
                 .filter(account -> account.includedInNetAsset && !account.hidden)
                 .map(Account::getBalance)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        return totalBalance.add(getTotalLending());
+        return totalBalance.add(getTotalLending()).setScale(2, RoundingMode.HALF_UP);
     }
 
     public BigDecimal getNetAssets() {
-        return getTotalAssets().subtract(getTotalLiabilities()).add(getTotalLending());
+        return getTotalAssets().subtract(getTotalLiabilities()).setScale(2, RoundingMode.HALF_UP);
     }
 
     public BigDecimal getTotalLiabilities() {
@@ -143,6 +150,6 @@ public class User {
                 .map(account -> ((LoanAccount) account).getRemainingAmount()) //get this.remainingAmount
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        return totalCreditDebt.add(getTotalBorrowing()).add(totalUnpaidLoan);
+        return totalCreditDebt.add(getTotalBorrowing()).add(totalUnpaidLoan).setScale(2, RoundingMode.HALF_UP);
     }
 }
