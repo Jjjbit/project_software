@@ -17,8 +17,8 @@ public interface BudgetRepository extends JpaRepository<Budget, Long> {
             "AND b.category IS NULL " +
             "AND :today >= b.startDate " +
             "AND :today <= b.endDate")
-    Optional<Budget> findActiveUserBudget(@Param("userId") Long userId,
-                                          @Param("today") LocalDate today);
+    Optional<Budget> findActiveUncategorizedBudgetByUserId(@Param("userId") Long userId,
+                                                           @Param("today") LocalDate today);
 
 
     @Query("SELECT b FROM Budget b " +
