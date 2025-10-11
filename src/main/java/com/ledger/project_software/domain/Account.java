@@ -1,8 +1,10 @@
 package com.ledger.project_software.domain;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -34,6 +36,7 @@ public abstract class Account {
 
     @ManyToOne
     @JoinColumn(name = "owner_id", nullable = false)
+    @JsonBackReference("user-accounts")
     protected User owner;
 
     @Column(length = 500)
@@ -75,7 +78,7 @@ public abstract class Account {
     }
 
     public void credit(BigDecimal amount) {
-        balance = balance.add(amount);
+        balance = balance.add(amount).setScale(2, RoundingMode.HALF_UP);
     }
     public abstract void debit(BigDecimal amount);
     public void hide() {
