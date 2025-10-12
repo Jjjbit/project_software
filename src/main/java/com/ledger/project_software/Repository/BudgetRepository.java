@@ -25,8 +25,7 @@ public interface BudgetRepository extends JpaRepository<Budget, Long> {
             "WHERE b.owner.id = :userId " +
             "AND b.category IS NOT NULL " +
             "AND b.category.parent IS NULL " +
-            "AND :today >= b.startDate " +
-            "AND :today <= b.endDate")
+            "AND :today BETWEEN b.startDate AND b.endDate")
     List<Budget> findActiveCategoriesBudgetByUserId(@Param("userId") Long userId, //ritorna una lista di budget di categorie di user
                                                     @Param("today") LocalDate today);
 
@@ -35,8 +34,11 @@ public interface BudgetRepository extends JpaRepository<Budget, Long> {
             "WHERE b.owner.id = :userId " +
             "AND b.category IS NOT NULL " +
             "AND b.category.parent IS NOT NULL " +
-            "AND :today >= b.startDate " +
-            "AND :today <= b.endDate")
+            "AND b.category.id = :subCategoryId " +
+            "AND b.period = :period " +
+            "AND :today BETWEEN b.startDate AND b.endDate")
     Optional<Budget> findActiveSubCategoryBudget(@Param("userId") Long userId, //ritorna il budget di una sottocategoria
-                                                 @Param("today") LocalDate today);
+                                                 @Param("subCategoryId") Long subCategoryId,
+                                                 @Param("today") LocalDate today,
+                                                 @Param("period") Budget.Period period);
 }
