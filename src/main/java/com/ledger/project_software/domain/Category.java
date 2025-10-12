@@ -6,7 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-public class Category {
+public class Category { // General category not tied to a specific ledger
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;

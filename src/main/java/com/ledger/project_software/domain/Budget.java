@@ -51,7 +51,7 @@ public class Budget {
     }
     public static LocalDate getStartDateForPeriod(LocalDate today, Period budgetPeriod) {
         return switch (budgetPeriod) {
-            case YEARLY -> LocalDate.of(today.getYear(), 11, 1);
+            case YEARLY -> LocalDate.of(today.getYear(), 1, 1);
             case MONTHLY -> LocalDate.of(today.getYear(), today.getMonth(), 1);
         };
     }
@@ -72,6 +72,9 @@ public class Budget {
     }
     public Long getId() {
         return id;
+    }
+    public void setId(Long id) {
+        this.id = id;
     }
     public BigDecimal getAmount() {
         return amount;
@@ -101,7 +104,7 @@ public class Budget {
         return category != null && category.equals(cc);
     }
 
-    public boolean isInPeriod(LocalDate date) {
+    public boolean isActive(LocalDate date) {
         return switch (period) {
             case MONTHLY -> date.isBefore(startDate.plusMonths(1));
             case YEARLY -> date.isBefore(startDate.plusYears(1));
