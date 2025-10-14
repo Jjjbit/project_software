@@ -2,15 +2,22 @@ package com.ledger.project_software.business;
 import com.ledger.project_software.Repository.*;
 import com.ledger.project_software.domain.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
+import java.math.BigDecimal;
 import java.security.Principal;
+import java.time.LocalDate;
+import java.time.YearMonth;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/ledgers")
@@ -262,5 +269,156 @@ public class LedgerController {
         ledgerRepository.save(ledger);
         return ResponseEntity.ok("Ledger renamed successfully");
     }
+
+
+
+    @GetMapping("/all-ledgers")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<List<Ledger>> getAllLedgers(Principal principal) {
+        if(principal == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        User user = userRepository.findByUsername(principal.getName());
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        List<Ledger> ledgers = ledgerRepository.findByOwner(user);
+        return ResponseEntity.ok(ledgers);
+    }
+
+    @GetMapping("/{ledgerId}/all-transactions-for-month")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<List<Transaction>> getLedgerTransactionsForMonth(@PathVariable Long ledgerId,
+                                                              Principal principal,
+                                                              @RequestParam (required = false) @DateTimeFormat(pattern = "yyyy-MM") YearMonth month) {
+        if(principal == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        User user = userRepository.findByUsername(principal.getName());
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        Ledger ledger = ledgerRepository.findById(ledgerId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Ledger not found"));
+        if(!ledger.getOwner().getId().equals(user.getId())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
+        LocalDate startDate;
+        LocalDate endDate;
+        if(month == null) {
+            startDate = YearMonth.now().atDay(1);
+            endDate = YearMonth.now().atEndOfMonth();
+        }else{
+            startDate = month.atDay(1);
+            endDate = month.atEndOfMonth();
+        }
+
+        List<Transaction> transactions = transactionRepository.findByLedgerIdAndOwnerId(
+                ledgerId,
+                user.getId(),
+                startDate,
+                endDate);
+
+        return ResponseEntity.ok(transactions);
+    }
+
+    @GetMapping("/{ledgerId}/categories")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Map<String, Object>> getLedgerCategories(@PathVariable Long ledgerId,
+                                                              Principal principal) {
+        if(principal == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        User user = userRepository.findByUsername(principal.getName());
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        Ledger ledger = ledgerRepository.findById(ledgerId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Ledger not found"));
+        if(!ledger.getOwner().getId().equals(user.getId())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
+        //find parent categories (categories without parent) of ledger
+        List<LedgerCategory> parentCategories = ledgerCategoryRepository.findByParentIsNull(ledgerId);
+
+        //for each parent category, find its subcategories
+        List<Map<String, Object>> categories = parentCategories.stream().map(parent -> {
+            Map<String, Object> parentMap = new HashMap<>();
+            parentMap.put("CategoryName", parent.getName());
+
+            //subCategoriesFromDb is a list of categories that have parent id = parent.getId()
+            List<LedgerCategory> subCategoriesFromDb = ledgerCategoryRepository.findByParentCategoryId(parent.getId());
+
+            //subCategories is a list of maps with id and name of each subcategory of parent id = parent.getId()
+            List<Map<String, Object>> subCategories = subCategoriesFromDb.stream()
+                    .map(child -> {
+                        Map<String, Object> childMap = new HashMap<>();
+                        childMap.put("SubCategoryName", child.getName());
+                        return childMap;
+                    }).toList();
+
+            parentMap.put("subCategories", subCategories);
+            return parentMap;
+        }).toList();
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("ledgerName", ledger.getName());
+        response.put("categories", categories);
+
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/{ledgerId}/monthly-summary")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Map<String, Object>> getMonthlySummary(@PathVariable Long ledgerId,
+                                                                 @RequestParam (required = false) @DateTimeFormat(pattern = "yyyy-MM") YearMonth month,
+                                                                 Principal principal) {
+
+        if (principal == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        User user = userRepository.findByUsername(principal.getName());
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        Ledger ledger = ledgerRepository.findById(ledgerId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Ledger not found"));
+
+        if (!ledger.getOwner().getId().equals(user.getId())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
+        LocalDate startDate;
+        LocalDate endDate;
+        if(month == null) {
+            startDate = YearMonth.now().atDay(1);
+            endDate = YearMonth.now().atEndOfMonth();
+            month = YearMonth.now();
+        }else{
+            startDate = month.atDay(1);
+            endDate = month.atEndOfMonth();
+        }
+
+
+        BigDecimal totalIncome = transactionRepository.sumIncomeByLedgerAndPeriod(ledgerId, startDate, endDate);
+        BigDecimal totalExpense = transactionRepository.sumExpenseByLedgerAndPeriod(ledgerId, startDate, endDate);
+
+        if (totalIncome == null) totalIncome = BigDecimal.ZERO;
+        if (totalExpense == null) totalExpense = BigDecimal.ZERO;
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("ledgerName", ledger.getName());
+        response.put("month", month.toString());
+        response.put("totalIncome", totalIncome);
+        response.put("totalExpense", totalExpense);
+
+        return ResponseEntity.ok(response);
+    }
+
 
 }
