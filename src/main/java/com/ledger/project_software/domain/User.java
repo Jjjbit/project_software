@@ -47,8 +47,6 @@ public class User {
     public User(String username, String password){
         this.username = username;
         this.password = password;
-        createLedger("Default Ledger");
-
     }
 
     public List<Budget> getBudget() {
@@ -65,10 +63,6 @@ public class User {
     }
     public Long getId() {
         return id;
-    }
-    public void createLedger(String name) {
-        Ledger ledger = new Ledger(name, this);
-        ledgers.add(ledger);
     }
     public List<Ledger> getLedgers() {
         return ledgers;

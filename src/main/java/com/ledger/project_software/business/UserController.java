@@ -1,8 +1,7 @@
 package com.ledger.project_software.business;
 
-import com.ledger.project_software.Repository.AccountRepository;
 import com.ledger.project_software.Repository.UserRepository;
-import com.ledger.project_software.domain.Account;
+import com.ledger.project_software.domain.Ledger;
 import com.ledger.project_software.domain.PasswordUtils;
 import com.ledger.project_software.domain.User;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,7 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.security.Principal;
-import java.util.List;
+
 
 @RestController
 @RequestMapping("/users")
@@ -21,8 +20,6 @@ public class UserController {
 
     @Autowired
     private UserRepository userRepository;
-    @Autowired
-    private AccountRepository accountRepository;
 
     @PostMapping("/register")
     @Transactional
@@ -32,6 +29,8 @@ public class UserController {
             return ResponseEntity.status(HttpStatus.CONFLICT).body("Username already exists");
         }
         User user = new User(username, PasswordUtils.hash(password));
+        Ledger defaultLedger = new Ledger("Default Ledger", user);
+        user.getLedgers().add(defaultLedger);
         userRepository.save(user);
         return ResponseEntity.ok("Registration successful");
     }
