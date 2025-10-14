@@ -3,6 +3,7 @@ package com.ledger.project_software.business;
 import com.ledger.project_software.Repository.*;
 import com.ledger.project_software.domain.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -11,6 +12,8 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.security.Principal;
+import java.time.LocalDate;
+import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -209,9 +212,10 @@ public class LedgerCategoryController {
         }
 
         List<Budget> budgetsToDelete = new ArrayList<>(category.getBudgets());
-        for (Budget b : budgetsToDelete) {
+        budgetRepository.deleteAll(budgetsToDelete);
+        /*for (Budget b : budgetsToDelete) {
             budgetRepository.delete(b);
-        }
+        }*/
 
         if (!deleteTransactions) {
             if(migrateToCategoryId == null) {
@@ -349,6 +353,61 @@ public class LedgerCategoryController {
         ledgerCategoryRepository.save(newParent);
         ledgerCategoryRepository.save(category);
         return ResponseEntity.ok("Parent category changed successfully");
+    }
+
+    @GetMapping("/{id}/all-transactions-for-month")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<List<Transaction>> getCategoryTransactionsForMonth(@PathVariable Long id,
+                                                                             Principal principal,
+                                                                             @RequestParam (required = false) @DateTimeFormat(pattern = "yyyy-MM") YearMonth month) {
+          if(principal == null){
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+          }
+          User user = userRepository.findByUsername(principal.getName());
+          if (user == null ) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+          }
+          LedgerCategory category = ledgerCategoryRepository.findById(id)
+                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Category not found"));
+
+          if (!category.getLedger().getOwner().getId().equals(user.getId())) {
+              return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+          }
+
+          List<Transaction> transactions;
+          LocalDate startDate;
+          LocalDate endDate;
+          if(month == null) {
+              startDate = YearMonth.now().atDay(1);
+              endDate = YearMonth.now().atEndOfMonth();
+          }else{
+              startDate = month.atDay(1);
+              endDate = month.atEndOfMonth();
+          }
+
+          if (category.getParent() == null) { //if it's a category of first level
+              List<Long> categoryIds = new ArrayList<>();
+              categoryIds.add(category.getId());
+
+              //find all subcategories of this category
+              List<LedgerCategory> subCategories = ledgerCategoryRepository.findByParentId(id);
+              //add its subCategoryIds and its id to the list of ids categoryIds
+              for (LedgerCategory subCategory : subCategories) {
+                  categoryIds.add(subCategory.getId());
+              }
+              //find all transactions of this category and its subcategories
+              transactions = transactionRepository.findByCategoryIdsAndUserId(
+                      categoryIds, startDate, endDate, user.getId()
+              );
+
+          } else { //if it's a subcategory
+              //find all transactions of this subcategory
+              transactions = transactionRepository.findByCategoryIdAndUserId(
+                        id, startDate, endDate, user.getId()
+              );
+          }
+
+          return ResponseEntity.ok(transactions);
     }
 
 }
