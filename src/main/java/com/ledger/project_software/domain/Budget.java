@@ -27,6 +27,7 @@ public class Budget {
 
     @ManyToOne
     @JoinColumn(name = "category_id")
+    @JsonBackReference("category-budgets")
     private LedgerCategory category; // Category or subcategory
 
     @ManyToOne

@@ -1,6 +1,8 @@
 package com.ledger.project_software.domain;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 
 import java.math.BigDecimal;
@@ -24,9 +26,11 @@ public class Ledger {
     private User owner;
 
     @OneToMany(mappedBy = "ledger", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonManagedReference("ledger-transactions")
     private List<Transaction> transactions=new ArrayList<>(); //relazione tra Transaction e Ledger è composizione
 
     @OneToMany(mappedBy = "ledger", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonIgnoreProperties({"ledger", "transactions", "budgets"})
     private List<LedgerCategory> categories = new ArrayList<>();
 
     public Ledger() {}

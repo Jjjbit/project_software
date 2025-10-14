@@ -14,8 +14,6 @@ import java.util.stream.Collectors;
 @Entity
 @Inheritance(strategy = InheritanceType.JOINED)
 public abstract class Account {
-
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     protected Long id;

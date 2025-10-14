@@ -1,5 +1,7 @@
 package com.ledger.project_software.domain;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 
 import java.math.BigDecimal;
@@ -23,18 +25,22 @@ public abstract class Transaction {
 
     @ManyToOne
     @JoinColumn(name = "from_account_id")
+    @JsonIgnoreProperties({"outgoingTransactions", "incomingTransactions"})
     protected Account fromAccount; //relaizone tra Transaction e Account è associazione. più transazioni->un account
 
     @ManyToOne
     @JoinColumn(name = "to_account_id")
+    @JsonIgnoreProperties({"outgoingTransactions", "incomingTransactions"})
     protected Account toAccount; //per i trasferimenti tra conti
 
     @ManyToOne
     @JoinColumn(name = "ledger_id")
+    @JsonBackReference("ledger-transactions")
     protected Ledger ledger; //relazione tra Transaction e Ledger è aggregazione. più transazioni -> un ledger
 
     @ManyToOne
     @JoinColumn(name = "category_id")
+    @JsonBackReference("category-transactions")
     protected LedgerCategory category;
 
     @Enumerated(EnumType.STRING)
