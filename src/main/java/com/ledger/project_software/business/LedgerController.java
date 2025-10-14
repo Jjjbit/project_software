@@ -342,7 +342,7 @@ public class LedgerController {
         }
 
         //find parent categories (categories without parent) of ledger
-        List<LedgerCategory> parentCategories = ledgerCategoryRepository.findByParentIsNull(ledgerId);
+        List<LedgerCategory> parentCategories = ledgerCategoryRepository.findByLedgerIdAndParentIsNull(ledgerId);
 
         //for each parent category, find its subcategories
         List<Map<String, Object>> categories = parentCategories.stream().map(parent -> {
@@ -350,7 +350,7 @@ public class LedgerController {
             parentMap.put("CategoryName", parent.getName());
 
             //subCategoriesFromDb is a list of categories that have parent id = parent.getId()
-            List<LedgerCategory> subCategoriesFromDb = ledgerCategoryRepository.findByParentCategoryId(parent.getId());
+            List<LedgerCategory> subCategoriesFromDb = ledgerCategoryRepository.findByParentId(parent.getId());
 
             //subCategories is a list of maps with id and name of each subcategory of parent id = parent.getId()
             List<Map<String, Object>> subCategories = subCategoriesFromDb.stream()
