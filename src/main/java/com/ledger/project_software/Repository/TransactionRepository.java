@@ -42,10 +42,10 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
             "AND t.type = 'EXPENSE' " +
             "AND t.category.id IN :categoryIds " +
             "AND t.date BETWEEN :startDate AND :endDate " )
-    BigDecimal sumExpensesByCategoryAndPeriod(@Param("userId") Long userId,
-                                              @Param("categoryIds") List<Long> categoryIds,
-                                              @Param("startDate") LocalDate startDate,
-                                              @Param("endDate") LocalDate endDate);
+    BigDecimal sumExpensesByCategoryIdsAndPeriod(@Param("userId") Long userId,
+                                                 @Param("categoryIds") List<Long> categoryIds,
+                                                 @Param("startDate") LocalDate startDate,
+                                                 @Param("endDate") LocalDate endDate);
 
     @Query("SELECT t FROM Transaction t " +
             "WHERE t.ledger.owner.id = :ownerId " +
@@ -67,7 +67,7 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
                                                @Param("start") LocalDate start,
                                                @Param("end") LocalDate end);
 
-    @Query("SELECT SUM(t.amount) FROM Transaction t " +
+    @Query("SELECT COALESCE(SUM(t.amount), 0) FROM Transaction t " +
             "WHERE t.ledger.id = :ledgerId " +
             "AND t.type = 'INCOME' " +
             "AND t.date BETWEEN :start AND :end")
@@ -75,7 +75,7 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
                                           @Param("start") LocalDate start,
                                           @Param("end") LocalDate end);
 
-    @Query("SELECT SUM(t.amount) FROM Transaction t " +
+    @Query("SELECT COALESCE(SUM(t.amount), 0) FROM Transaction t " +
             "WHERE t.ledger.id = :ledgerId " +
             "AND t.type = 'EXPENSE' " +
             "AND t.date BETWEEN :start AND :end")
