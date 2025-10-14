@@ -6,12 +6,9 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import javax.swing.text.html.Option;
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.YearMonth;
 import java.util.List;
-import java.util.Optional;
 
 @Repository
 public interface TransactionRepository extends JpaRepository<Transaction, Long> {
@@ -44,14 +41,65 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
             "WHERE t.ledger.owner.id = :userId " +
             "AND t.type = 'EXPENSE' " +
             "AND t.category.id IN :categoryIds " +
-            "AND t.date >= :startDate " +
-            "AND t.date <= :endDate")
+            "AND t.date BETWEEN :startDate AND :endDate " )
     BigDecimal sumExpensesByCategoryAndPeriod(@Param("userId") Long userId,
                                               @Param("categoryIds") List<Long> categoryIds,
                                               @Param("startDate") LocalDate startDate,
                                               @Param("endDate") LocalDate endDate);
 
-    List<Transaction> findByAccountIdAndOwnerId(Long accountId, Long ownerId, LocalDate start, LocalDate end);
+    @Query("SELECT t FROM Transaction t " +
+            "WHERE t.ledger.owner.id = :ownerId " +
+            "AND (t.fromAccount.id = :accountId OR t.toAccount.id = :accountId) " +
+            "AND t.date BETWEEN :start AND :end " +
+            "ORDER BY t.date DESC")
+    List<Transaction> findByAccountIdAndOwnerId(@Param("accountId") Long accountId,
+                                                @Param("ownerId") Long ownerId,
+                                                @Param("state") LocalDate start,
+                                                @Param("end") LocalDate end);
 
-    List<Transaction> findByLedgerIdAndOwnerId(Long ledgerId, Long ownerId, LocalDate start, LocalDate end);
+    @Query("SELECT t FROM Transaction t " +
+            "WHERE t.ledger.id = :ledgerId " +
+            "AND t.ledger.owner.id = :ownerId " +
+            "AND t.date BETWEEN :start AND :end " +
+            "ORDER BY t.date DESC")
+    List<Transaction> findByLedgerIdAndOwnerId(@Param("ledgerId") Long ledgerId,
+                                               @Param("ownerId") Long ownerId,
+                                               @Param("start") LocalDate start,
+                                               @Param("end") LocalDate end);
+
+    @Query("SELECT SUM(t.amount) FROM Transaction t " +
+            "WHERE t.ledger.id = :ledgerId " +
+            "AND t.type = 'INCOME' " +
+            "AND t.date BETWEEN :start AND :end")
+    BigDecimal sumIncomeByLedgerAndPeriod(@Param("ledgerId") Long ledgerId,
+                                          @Param("start") LocalDate start,
+                                          @Param("end") LocalDate end);
+
+    @Query("SELECT SUM(t.amount) FROM Transaction t " +
+            "WHERE t.ledger.id = :ledgerId " +
+            "AND t.type = 'EXPENSE' " +
+            "AND t.date BETWEEN :start AND :end")
+    BigDecimal sumExpenseByLedgerAndPeriod(@Param("ledgerId") Long ledgerId,
+                                           @Param("start") LocalDate start,
+                                           @Param("end") LocalDate end);
+
+    @Query("SELECT t FROM Transaction t " +
+            "WHERE t.category.id IN :categoryIds " +
+            "AND t.ledger.owner.id = :ownerId " +
+            "AND t.date BETWEEN :start AND :end " +
+            "ORDER BY t.date DESC")
+    List<Transaction> findByCategoryIdsAndUserId(@Param("categoryIds") List<Long> categoryIds,
+                                                 @Param("start") LocalDate start,
+                                                 @Param("end") LocalDate end,
+                                                 @Param("ownerId") Long ownerId);
+
+    @Query("SELECT t FROM Transaction t " +
+            "WHERE t.category.id = :categoryId " +
+            "AND t.ledger.owner.id = :ownerId " +
+            "AND t.date BETWEEN :start AND :end " +
+            "ORDER BY t.date DESC")
+    List<Transaction> findByCategoryIdAndUserId(@Param("categoryId") Long categoryId,
+                                                @Param("start") LocalDate start,
+                                                @Param("end") LocalDate end,
+                                                @Param("ownerId") Long ownerId);
 }
