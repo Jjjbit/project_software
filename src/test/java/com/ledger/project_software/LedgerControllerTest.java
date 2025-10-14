@@ -186,9 +186,9 @@ public class LedgerControllerTest {
         Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
         Mockito.when(ledgerRepository.findById(eq(testLedger.getId())))
                 .thenReturn(Optional.of(testLedger));
-        Mockito.when(ledgerCategoryRepository.findByParentIsNull(eq(testLedger.getId())))
+        Mockito.when(ledgerCategoryRepository.findByLedgerIdAndParentIsNull(eq(testLedger.getId())))
                 .thenReturn(List.of(foodCategory, transportCategory));
-        Mockito.when(ledgerCategoryRepository.findByParentCategoryId(eq(foodCategory.getId())))
+        Mockito.when(ledgerCategoryRepository.findByParentId(eq(foodCategory.getId())))
                 .thenReturn(List.of(lunchCategory));
 
         mockMvc.perform(get("/ledgers/{ledgerId}/categories", testLedger.getId())
