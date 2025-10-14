@@ -14,10 +14,7 @@ import java.math.BigDecimal;
 import java.security.Principal;
 import java.time.LocalDate;
 import java.time.YearMonth;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @RestController
 @RequestMapping("/ledgers")
@@ -346,7 +343,7 @@ public class LedgerController {
 
         //for each parent category, find its subcategories
         List<Map<String, Object>> categories = parentCategories.stream().map(parent -> {
-            Map<String, Object> parentMap = new HashMap<>();
+            Map<String, Object> parentMap = new LinkedHashMap<>();
             parentMap.put("CategoryName", parent.getName());
 
             //subCategoriesFromDb is a list of categories that have parent id = parent.getId()
@@ -355,7 +352,7 @@ public class LedgerController {
             //subCategories is a list of maps with id and name of each subcategory of parent id = parent.getId()
             List<Map<String, Object>> subCategories = subCategoriesFromDb.stream()
                     .map(child -> {
-                        Map<String, Object> childMap = new HashMap<>();
+                        Map<String, Object> childMap = new LinkedHashMap<>();
                         childMap.put("SubCategoryName", child.getName());
                         return childMap;
                     }).toList();
@@ -364,7 +361,7 @@ public class LedgerController {
             return parentMap;
         }).toList();
 
-        Map<String, Object> response = new HashMap<>();
+        Map<String, Object> response = new LinkedHashMap<>();
         response.put("ledgerName", ledger.getName());
         response.put("categories", categories);
 
@@ -411,7 +408,7 @@ public class LedgerController {
         if (totalIncome == null) totalIncome = BigDecimal.ZERO;
         if (totalExpense == null) totalExpense = BigDecimal.ZERO;
 
-        Map<String, Object> response = new HashMap<>();
+        Map<String, Object> response = new LinkedHashMap<>();
         response.put("ledgerName", ledger.getName());
         response.put("month", month.toString());
         response.put("totalIncome", totalIncome);
