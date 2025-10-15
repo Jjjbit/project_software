@@ -36,7 +36,7 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
                                                  @Param("endDate") LocalDate endDate);
 
 
-    //expense for category and its subcategories
+    //expense of group of categories
     @Query("SELECT COALESCE(SUM(t.amount), 0) FROM Transaction t " +
             "WHERE t.ledger.owner.id = :userId " +
             "AND t.type = 'EXPENSE' " +
