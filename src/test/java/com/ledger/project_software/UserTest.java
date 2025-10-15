@@ -1,8 +1,8 @@
 package com.ledger.project_software;
 
+import com.ledger.project_software.Repository.AccountRepository;
 import com.ledger.project_software.Repository.UserRepository;
-import com.ledger.project_software.domain.PasswordUtils;
-import com.ledger.project_software.domain.User;
+import com.ledger.project_software.domain.*;
 import jakarta.transaction.Transactional;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -12,10 +12,13 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.annotation.Rollback;
 import org.springframework.test.web.servlet.MockMvc;
 
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import java.math.BigDecimal;
+import java.time.LocalDate;
+
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 
 @SpringBootTest(classes = com.ledger.project_software.ProjectSoftwareApplication.class)
 @Transactional
@@ -27,6 +30,9 @@ public class UserTest { // Integration test between UserController and UserRepos
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private AccountRepository accountRepository;
 
     @Test
     public void testRegisterAndVerifyInDatabase() throws Exception {
@@ -110,6 +116,73 @@ public class UserTest { // Integration test between UserController and UserRepos
         Assertions.assertNotNull(updatedUser);
         Assertions.assertTrue(PasswordUtils.verify("newpassword", updatedUser.getPassword()));
         Assertions.assertEquals(1, userRepository.findAll().size());
+    }
+
+    @Test
+    public void testGetUserAssets() throws Exception {
+        User testUser = new User("Alice", PasswordUtils.hash("pass123"));
+        userRepository.save(testUser);
+
+        Account account1 = new BasicAccount("Cash Account",
+                BigDecimal.valueOf(1000),
+                null,
+                true,
+                true,
+                AccountType.CASH,
+                AccountCategory.FUNDS,
+                testUser);
+        testUser.getAccounts().add(account1);
+        accountRepository.save(account1);
+
+        Account account2 = new CreditAccount("Credit Card",
+                BigDecimal.valueOf(500), // balance
+                testUser,
+                null,
+                true,
+                true,
+                BigDecimal.valueOf(1000), // creditLimit
+                BigDecimal.valueOf(150), // currentDebt
+                null,
+                null,
+                AccountType.CREDIT_CARD);
+        testUser.getAccounts().add(account2);
+        accountRepository.save(account2);
+
+        Account account3= new LendingAccount("Bob",
+                BigDecimal.valueOf(300), // balance da ricevere
+                null,
+                true,
+                true,
+                testUser,
+                LocalDate.now());
+        testUser.getAccounts().add(account3);
+        accountRepository.save(account3);
+
+        Account account4 = new BorrowingAccount("Mike",
+                BigDecimal.valueOf(200), // balance da pagare
+                null,
+                true,
+                true,
+                testUser,
+                LocalDate.now());
+        testUser.getAccounts().add(account4);
+        accountRepository.save(account4);
+
+        mockMvc.perform(post("/users/login")
+                        .param("username", "Alice")
+                        .param("password", "pass123"))
+                .andExpect(status().isOk())
+                .andExpect(content().string("Login successful"));
+
+        mockMvc.perform(get("/users/my-assets")
+                        .principal(() -> "Alice"))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalAssets").value(1800))
+                .andExpect(jsonPath("$.totalLiabilities").value(350))
+                .andExpect(jsonPath("$.netAssets").value(1450))
+                .andExpect(jsonPath("$.totalLending").value(300))
+                .andExpect(jsonPath("$.totalBorrowing").value(200));
     }
 
 }

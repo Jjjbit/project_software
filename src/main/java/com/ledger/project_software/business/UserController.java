@@ -12,6 +12,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.security.Principal;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 
 @RestController
@@ -27,6 +29,18 @@ public class UserController {
                                            @RequestParam String password) {
         if (userRepository.findByUsername(username) != null) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body("Username already exists");
+        }
+        if(username == null || username.isEmpty()){
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Username cannot be empty");
+        }
+        if(password == null || password.isEmpty()){
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Password cannot be empty");
+        }
+        if(password.length() < 6){
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Password must be at least 6 characters long");
+        }
+        if(username.length() < 3 || username.length() > 20){
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Username must be between 3 and 20 characters long");
         }
         User user = new User(username, PasswordUtils.hash(password));
         Ledger defaultLedger = new Ledger("Default Ledger", user);
@@ -70,6 +84,27 @@ public class UserController {
         }
         userRepository.save(user);
         return ResponseEntity.ok("User info updated");
+    }
+
+    @GetMapping("/my-assets")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Map<String, Object>> getUserAssets(Principal principal) {
+        if (principal == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        User user = userRepository.findByUsername(principal.getName());
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        }
+
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("totalAssets", user.getTotalAssets());
+        response.put("totalLiabilities", user.getTotalLiabilities());
+        response.put("netAssets", user.getNetAssets());
+        response.put("totalLending", user.getTotalLending());
+        response.put("totalBorrowing", user.getTotalBorrowing());
+
+        return ResponseEntity.ok(response);
     }
 
 
