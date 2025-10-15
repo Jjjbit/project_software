@@ -74,7 +74,7 @@ public class LedgerTest {
 
     }
 
-    @Configuration //conterte String in YearMonth per i test
+    @Configuration //converte String in YearMonth per i test
     public class WebConfig implements WebMvcConfigurer {
 
         @Override
