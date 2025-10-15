@@ -42,6 +42,9 @@ public class LedgerController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<String> createLedger(@RequestParam String name,
                                                Principal principal) {
+        if(principal == null){
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized access");
+        }
         User owner=userRepository.findByUsername(principal.getName());
         if (owner == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User not found");
