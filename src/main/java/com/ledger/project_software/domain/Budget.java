@@ -89,21 +89,7 @@ public class Budget {
     public User getOwner() {
         return owner;
     }
-    public boolean isForCategory() {
-        return category != null;
-    }
 
-    public boolean isTransactionInPeriod(Transaction t, Period p) {
-        LocalDate txDate = t.getDate();
-        return switch (p) {
-            case MONTHLY -> txDate.getYear() == startDate.getYear()
-                    && txDate.getMonth() == startDate.getMonth();
-            case YEARLY -> txDate.getYear() == startDate.getYear();
-        };
-    }
-    public boolean belongsTo(LedgerCategory cc) {
-        return category != null && category.equals(cc);
-    }
 
     public boolean isActive(LocalDate date) {
         return switch (period) {
