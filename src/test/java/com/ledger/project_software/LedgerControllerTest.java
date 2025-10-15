@@ -181,8 +181,6 @@ public class LedgerControllerTest {
         lunchCategory.setId(11L);
 
 
-        List<LedgerCategory> categories = List.of(foodCategory, transportCategory, lunchCategory);
-
         Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
         Mockito.when(ledgerRepository.findById(eq(testLedger.getId())))
                 .thenReturn(Optional.of(testLedger));
