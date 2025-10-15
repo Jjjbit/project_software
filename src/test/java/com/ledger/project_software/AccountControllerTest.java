@@ -24,7 +24,6 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.hamcrest.Matchers.hasSize;
-import static org.hamcrest.Matchers.is;
 import org.springframework.core.convert.converter.Converter;
 
 import java.math.BigDecimal;
@@ -95,7 +94,6 @@ public class AccountControllerTest {
                 null,
                 null,
                 AccountType.CREDIT_CARD);
-        //accountRepository.save(account2);
         account2.setId(200L);
 
         testAccounts =List.of(account1, account2);

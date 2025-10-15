@@ -6,21 +6,31 @@ import jakarta.transaction.Transactional;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.core.convert.converter.Converter;
+import org.springframework.format.FormatterRegistry;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.annotation.Rollback;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.YearMonth;
+import java.time.format.DateTimeFormatter;
+import java.util.List;
 
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.hamcrest.Matchers.hasSize;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 
 @SpringBootTest(classes = com.ledger.project_software.ProjectSoftwareApplication.class)
 @Transactional
@@ -71,6 +81,20 @@ public class AccountTest {
         testLedger.getCategories().add(salaryCategory);
         ledgerRepository.save(testLedger);
         userRepository.save(testUser);
+    }
+
+    @Configuration //converte String in YearMonth per i test
+    public class WebConfig implements WebMvcConfigurer {
+
+        @Override
+        public void addFormatters(FormatterRegistry registry) {
+            registry.addConverter(new Converter<String, YearMonth>() {
+                @Override
+                public YearMonth convert(String source) {
+                    return YearMonth.parse(source, DateTimeFormatter.ofPattern("yyyy-MM"));
+                }
+            });
+        }
     }
 
     @Test
@@ -1908,5 +1932,118 @@ public class AccountTest {
         Assertions.assertEquals(1, transactionRepository.findAll().size());
     }
 
+
+    @Test
+    @WithMockUser(username = "Alice")
+    public void testGetMyAccounts() throws Exception {
+        Account account1 = new BasicAccount("Cash Account",
+                BigDecimal.valueOf(1000),
+                null,
+                true,
+                true,
+                AccountType.CASH,
+                AccountCategory.FUNDS,
+                testUser);
+        accountRepository.save(account1);
+        testUser.getAccounts().add(account1);
+
+        Account account2 = new CreditAccount("Credit Card",
+                BigDecimal.valueOf(500),
+                testUser,
+                null,
+                true,
+                true,
+                BigDecimal.valueOf(1000),
+                BigDecimal.valueOf(0),
+                null,
+                null,
+                AccountType.CREDIT_CARD);
+        accountRepository.save(account2);
+        testUser.getAccounts().add(account2);
+        userRepository.save(testUser);
+
+        mockMvc.perform(get("/accounts/all-accounts")
+                        .principal(() -> "Alice"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(2)))
+                .andExpect(jsonPath("$[0].name").value("Cash Account"))
+                .andExpect(jsonPath("$[0].balance").value(1000))
+                .andExpect(jsonPath("$[1].name").value("Credit Card"))
+                .andExpect(jsonPath("$[1].balance").value(500));
+    }
+
+    @Test
+    @WithMockUser(username = "Alice")
+    public void testGetTransactionsForAccount() throws Exception {
+        Account account1 = new BasicAccount("Cash Account",
+                BigDecimal.valueOf(1000),
+                null,
+                true,
+                true,
+                AccountType.CASH,
+                AccountCategory.FUNDS,
+                testUser);
+        accountRepository.save(account1);
+        testUser.getAccounts().add(account1);
+
+        Account account2 = new CreditAccount("Credit Card",
+                BigDecimal.valueOf(500),
+                testUser,
+                null,
+                true,
+                true,
+                BigDecimal.valueOf(1000),
+                BigDecimal.valueOf(0),
+                null,
+                null,
+                AccountType.CREDIT_CARD);
+        accountRepository.save(account2);
+        testUser.getAccounts().add(account2);
+        userRepository.save(testUser);
+
+        Transaction tx1 = new Transfer(LocalDate.of(2025, 10, 5),
+                null,
+                account1,
+                account2,
+                BigDecimal.valueOf(100),
+                testLedger
+        );
+        transactionRepository.save(tx1);
+        account1.addTransaction(tx1);
+        account2.addTransaction(tx1);
+        testLedger.getTransactions().add(tx1);
+
+        Transaction tx2 = new Transfer(LocalDate.of(2025, 10, 5),
+                null,
+                account2,
+                account1,
+                BigDecimal.valueOf(50),
+                testLedger
+        );
+        transactionRepository.save(tx2);
+        account1.addTransaction(tx2);
+        account2.addTransaction(tx2);
+        testLedger.getTransactions().add(tx2);
+
+        accountRepository.save(account1);
+        accountRepository.save(account2);
+        ledgerRepository.save(testLedger);
+
+        mockMvc.perform(get("/accounts/{id}/get-transactions-for-month", account1.getId())
+                        .principal(() -> "Alice")
+                        .param("month", "2025-10"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(2)))
+                .andExpect(jsonPath("$[0].amount").value(100))
+                .andExpect(jsonPath("$[1].amount").value(50));
+
+        mockMvc.perform(get("/accounts/{id}/get-transactions-for-month", account2.getId())
+                        .principal(() -> "Alice")
+                        .param("month", "2025-10"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(2)))
+                .andExpect(jsonPath("$[0].amount").value(100))
+                .andExpect(jsonPath("$[1].amount").value(50));
+    }
 
 }
