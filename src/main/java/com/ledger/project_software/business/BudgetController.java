@@ -19,7 +19,9 @@ import java.math.BigDecimal;
 import java.security.Principal;
 import java.time.LocalDate;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @RestController
 @RequestMapping("/budgets")
@@ -228,6 +230,7 @@ public class BudgetController {
         }
 
         LocalDate today = LocalDate.now();
+        BigDecimal totalCategorySpent = BigDecimal.ZERO;
 
         //uncategorized user budget. return zero values if not present
         Optional<Budget> userBudgetOpt = budgetRepository.findActiveUncategorizedBudgetByUserId(user.getId(), today);
@@ -238,22 +241,14 @@ public class BudgetController {
 
         if (userBudgetOpt.isPresent()) {
             Budget budget = userBudgetOpt.get();
-
             startDate = budget.getStartDateForPeriod(today, budget.getPeriod());
             endDate = budget.getEndDateForPeriod(today, budget.getPeriod());
-
-            userSpent = transactionRepository.sumExpensesByUserAndPeriod(
-                    user.getId(),
-                    startDate,
-                    endDate
-            );
         } else {
-            userSpent = BigDecimal.ZERO;
             startDate = today.withDayOfMonth(1);
             endDate = today.withDayOfMonth(today.lengthOfMonth());
         }
 
-        //list of Budgets = all categories budget in different ledger. empty list if none present
+        //list of Budgets activeBudgets = all categories budget in different ledger. empty list if none present
         //filter only category budgets with same period of uncategorized user budget, or monthly if no uncategorized user budget
         List<Budget> activeBudgets = budgetRepository.findActiveCategoriesBudgetByUserId(user.getId(), today)
                 .stream()
@@ -262,6 +257,9 @@ public class BudgetController {
                 .toList();
 
         //group by category name to merge budgets of same category in different ledger
+        //groupedByCategoryName: key=category name, value=list of budgets with that category name
+        //if two categories of different ledger have same name, their budgets are merged
+        //LinkedHashMap to preserve insertion order
         Map<String, List<Budget>> groupedByCategoryName = activeBudgets.stream()
                 .collect(Collectors.groupingBy(
                         b -> b.getCategory().getName(),
@@ -270,50 +268,90 @@ public class BudgetController {
                 ));
 
         //for each category name, calculate total budget, spent and remaining
-        List<Map<String, Object>> categoryBudgets = groupedByCategoryName.entrySet().stream()
-                .map(entry -> {
-                    String categoryName = entry.getKey();
-                    List<Budget> budgets = entry.getValue();
+        List<Map<String, Object>> categoryBudgets = new ArrayList<>();
 
-                    List<Long> categoryIds = budgets.stream()
-                            .map(b -> b.getCategory().getId())
-                            .toList();
+        for (Map.Entry<String, List<Budget>> entry : groupedByCategoryName.entrySet()) {
+            String categoryName = entry.getKey();
+            List<Budget> budgets = entry.getValue();
 
-                    BigDecimal totalBudget = budgets.stream()
-                            .map(Budget::getAmount)
-                            .reduce(BigDecimal.ZERO, BigDecimal::add);
+            List<Long> categoryIds = budgets.stream()
+                    .map(b -> b.getCategory().getId())
+                    .toList();
 
-                    BigDecimal spent = transactionRepository.sumExpensesByCategoryIdsAndPeriod(
+            BigDecimal totalBudget = budgets.stream()
+                    .map(Budget::getAmount)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+            BigDecimal spent = transactionRepository.sumExpensesByCategoryIdsAndPeriod(
+                    user.getId(),
+                    categoryIds,
+                    startDate,
+                    endDate
+            );
+
+            if (spent == null) {
+                spent = BigDecimal.ZERO;
+            }
+
+            //find all subcategory of all categories that have same name from database to include their spent if they have active budget
+            List<LedgerCategory> allSubCategories = budgets.stream()
+                    .map(Budget::getCategory)
+                    .flatMap(parentCat -> {
+                        List<LedgerCategory> children = ledgerCategoryRepository.findByParentId(parentCat.getId());
+                        return children != null ? children.stream() : Stream.empty();
+                    })
+                    .toList();
+
+            // for each subcategory, check if it has active budget. If yes, include its spent
+            for (LedgerCategory subCat : allSubCategories) {
+                // check if subcategory has active budget with same period of uncategorized user budget, or monthly if no uncategorized user budget
+                Optional<Budget> subBudgetOpt = budgetRepository.findActiveSubCategoryBudget(
+                        user.getId(),
+                        subCat.getId(),
+                        today,
+                        userBudgetOpt.isPresent() ? userBudgetOpt.get().getPeriod() : Budget.Period.MONTHLY
+                );
+
+                if (subBudgetOpt.isPresent()) {
+                    BigDecimal subSpent = transactionRepository.sumExpensesBySubCategoryAndPeriod(
                             user.getId(),
-                            categoryIds,
+                            subCat.getId(),
                             startDate,
                             endDate
                     );
+                    if (subSpent != null) {
+                        spent = spent.add(subSpent);
+                    }
+                }
+            }
 
-                    Map<String, Object> map = new LinkedHashMap<>();
-                    map.put("categoryName", categoryName);
-                    map.put("amount", totalBudget);
-                    map.put("spent", spent);
-                    map.put("remaining", totalBudget.subtract(spent));
-                    return map;
-                })
-                .toList();
+
+            totalCategorySpent = totalCategorySpent.add(spent);
+
+            Map<String, Object> map = new LinkedHashMap<>();
+            map.put("categoryName", categoryName);
+            map.put("amount", totalBudget);
+            map.put("spent", spent);
+            map.put("remaining", totalBudget.subtract(spent));
+
+            categoryBudgets.add(map);
+        }
 
         Map<String, Object> response = new LinkedHashMap<>();
-        response.put("userBudget", userBudgetOpt.map(b -> {
-            Map<String, Object> map = new LinkedHashMap<>();
-            map.put("amount", b.getAmount());
-            map.put("spent", userSpent);
-            map.put("remaining", b.getAmount().subtract(userSpent));
-            return map;
-        }).orElseGet(() -> { //if no uncategorized user budget
-            Map<String, Object> map = new LinkedHashMap<>();
-            map.put("amount", BigDecimal.ZERO);
-            map.put("spent", BigDecimal.ZERO);
-            map.put("remaining", BigDecimal.ZERO);
-            return map;
-        }));
 
+        Map<String, Object> userBudgetMap = new LinkedHashMap<>();
+        if (userBudgetOpt.isPresent()) {
+            Budget b = userBudgetOpt.get();
+            userBudgetMap.put("amount", b.getAmount());
+            userBudgetMap.put("spent", totalCategorySpent);
+            userBudgetMap.put("remaining", b.getAmount().subtract(totalCategorySpent));
+        } else {
+            userBudgetMap.put("amount", BigDecimal.ZERO);
+            userBudgetMap.put("spent", BigDecimal.ZERO);
+            userBudgetMap.put("remaining", BigDecimal.ZERO);
+        }
+
+        response.put("userBudget", userBudgetMap);
         response.put("categoryBudgets", categoryBudgets);
 
         return ResponseEntity.ok(response);

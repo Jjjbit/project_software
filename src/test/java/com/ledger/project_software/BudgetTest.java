@@ -16,10 +16,12 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.hamcrest.Matchers.hasSize;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 
 @SpringBootTest(classes = com.ledger.project_software.ProjectSoftwareApplication.class)
 @Transactional
@@ -41,11 +43,18 @@ public class BudgetTest {
     @Autowired
     private LedgerRepository ledgerRepository;
 
+    @Autowired
+    private AccountRepository accountRepository;
+
+    @Autowired
+    private TransactionRepository transactionRepository;
+
     private User testUser;
     private Ledger testLedger;
     private LedgerCategory foodCategory;
     private LedgerCategory lunch;
     private LedgerCategory transportCategory;
+    private Account testAccount1;
 
     @BeforeEach
     public void setup() {
@@ -55,6 +64,10 @@ public class BudgetTest {
         testLedger = new Ledger("Test Ledger", testUser);
         ledgerRepository.save(testLedger);
         testUser.getLedgers().add(testLedger);
+
+        testAccount1 = new BasicAccount("test Account 1", BigDecimal.valueOf(1000), null, true, true, AccountType.CASH, AccountCategory.FUNDS, testUser);
+        accountRepository.save(testAccount1);
+        testUser.getAccounts().add(testAccount1);
 
         foodCategory = new LedgerCategory("Food", CategoryType.EXPENSE, testLedger);
         ledgerCategoryRepository.save(foodCategory);
@@ -297,6 +310,197 @@ public class BudgetTest {
         Budget updatedFoodCategory = budgetRepository.findById(foodBudget.getId()).orElse(null);
         Assertions.assertEquals(0, updatedFoodCategory.getAmount().compareTo(BigDecimal.valueOf(900)));
 
+    }
+
+    //get all budget without category budgets
+    @Test
+    @WithMockUser(username = "Alice")
+    public void testGetAllBudget_withoutCategoryBudgets() throws Exception {
+        Budget userBudget = new Budget(BigDecimal.valueOf(2000), Budget.Period.MONTHLY, null, testUser);
+        budgetRepository.save(userBudget);
+        testUser.getBudgets().add(userBudget);
+
+        accountRepository.save(testAccount1);
+        ledgerRepository.save(testLedger);
+        ledgerCategoryRepository.save(foodCategory);
+
+
+        mockMvc.perform(get("/budgets")
+                        .principal(() -> "Alice"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.userBudget.amount").value(2000))
+                .andExpect(jsonPath("$.userBudget.spent").value(0))
+                .andExpect(jsonPath("$.userBudget.remaining").value(2000));
+    }
+
+    //get all budget with category budgets
+    @Test
+    @WithMockUser(username = "Alice")
+    public void testGetAllBudget_withCategoryBudgets() throws Exception {
+        Budget userBudget = new Budget(BigDecimal.valueOf(2000), Budget.Period.MONTHLY, null, testUser);
+        budgetRepository.save(userBudget);
+        testUser.getBudgets().add(userBudget);
+
+        Budget foodBudget = new Budget(BigDecimal.valueOf(800), Budget.Period.MONTHLY, foodCategory, testUser);
+        budgetRepository.save(foodBudget);
+        foodCategory.getBudgets().add(foodBudget);
+
+        Budget lunchBudget = new Budget(BigDecimal.valueOf(300), Budget.Period.MONTHLY, lunch, testUser);
+        budgetRepository.save(lunchBudget);
+        lunch.getBudgets().add(lunchBudget);
+
+        Budget transportBudget = new Budget(BigDecimal.valueOf(150), Budget.Period.MONTHLY, transportCategory, testUser);
+        budgetRepository.save(transportBudget);
+        transportCategory.getBudgets().add(transportBudget);
+        ledgerCategoryRepository.save(foodCategory);
+        ledgerCategoryRepository.save(transportCategory);
+        ledgerCategoryRepository.save(lunch);
+
+        Transaction tx1=new Expense(LocalDate.now(), BigDecimal.valueOf(170), null, testAccount1,testLedger,foodCategory);
+        transactionRepository.save(tx1);
+        testLedger.getTransactions().add(tx1);
+        testAccount1.addTransaction(tx1);
+        foodCategory.getTransactions().add(tx1);
+
+        Transaction tx2=new Expense(LocalDate.now(), BigDecimal.valueOf(100), null, testAccount1,testLedger, transportCategory);
+        transactionRepository.save(tx2);
+        testLedger.getTransactions().add(tx2);
+        testAccount1.addTransaction(tx2);
+        transportCategory.getTransactions().add(tx2);
+
+        Transaction tx3=new Expense(LocalDate.now(), BigDecimal.valueOf(50), null, testAccount1,testLedger, lunch);
+        transactionRepository.save(tx3);
+        testLedger.getTransactions().add(tx3);
+        testAccount1.addTransaction(tx3);
+        lunch.getTransactions().add(tx3);
+
+        accountRepository.save(testAccount1);
+        ledgerRepository.save(testLedger);
+        ledgerCategoryRepository.save(foodCategory);
+        ledgerCategoryRepository.save(transportCategory);
+        ledgerCategoryRepository.save(lunch);
+
+        mockMvc.perform(get("/budgets")
+                        .principal(() -> "Alice"))
+                .andExpect(status().isOk())
+                .andDo(print())
+                .andExpect(jsonPath("$.userBudget.amount").value(2000))
+                .andExpect(jsonPath("$.userBudget.spent").value(320))
+                .andExpect(jsonPath("$.userBudget.remaining").value(1680))
+                .andExpect(jsonPath("$.categoryBudgets", hasSize(2)))
+                .andExpect(jsonPath("$.categoryBudgets[0].categoryName").value("Food"))
+                .andExpect(jsonPath("$.categoryBudgets[1].categoryName").value("Transport"))
+                .andExpect(jsonPath("$.categoryBudgets[0].amount").value(800))
+                .andExpect(jsonPath("$.categoryBudgets[0].spent").value(220))
+                .andExpect(jsonPath("$.categoryBudgets[0].remaining").value(580))
+                .andExpect(jsonPath("$.categoryBudgets[1].amount").value(150))
+                .andExpect(jsonPath("$.categoryBudgets[1].spent").value(100))
+                .andExpect(jsonPath("$.categoryBudgets[1].remaining").value(50));
+    }
+
+    @Test
+    @WithMockUser(username = "Alice")
+    public void testGetAllBudget_withCategoryBudgets_noSubCategoryBudgets() throws Exception {
+        Budget userBudget = new Budget(BigDecimal.valueOf(2000), Budget.Period.MONTHLY, null, testUser);
+        budgetRepository.save(userBudget);
+        testUser.getBudgets().add(userBudget);
+
+        Budget foodBudget = new Budget(BigDecimal.valueOf(800), Budget.Period.MONTHLY, foodCategory, testUser);
+        budgetRepository.save(foodBudget);
+        foodCategory.getBudgets().add(foodBudget);
+
+        Budget transportBudget = new Budget(BigDecimal.valueOf(150), Budget.Period.MONTHLY, transportCategory, testUser);
+        budgetRepository.save(transportBudget);
+        transportCategory.getBudgets().add(transportBudget);
+        ledgerCategoryRepository.save(foodCategory);
+        ledgerCategoryRepository.save(transportCategory);
+
+        Transaction tx1=new Expense(LocalDate.now(), BigDecimal.valueOf(170), null, testAccount1,testLedger,foodCategory);
+        transactionRepository.save(tx1);
+        testLedger.getTransactions().add(tx1);
+        testAccount1.addTransaction(tx1);
+        foodCategory.getTransactions().add(tx1);
+
+        Transaction tx2=new Expense(LocalDate.now(), BigDecimal.valueOf(100), null, testAccount1,testLedger, transportCategory);
+        transactionRepository.save(tx2);
+        testLedger.getTransactions().add(tx2);
+        testAccount1.addTransaction(tx2);
+        transportCategory.getTransactions().add(tx2);
+
+        Transaction tx3=new Expense(LocalDate.now(), BigDecimal.valueOf(100), null, testAccount1,testLedger, lunch);
+        transactionRepository.save(tx3);
+        testLedger.getTransactions().add(tx3);
+        testAccount1.addTransaction(tx3);
+        lunch.getTransactions().add(tx3);
+
+        accountRepository.save(testAccount1);
+        ledgerRepository.save(testLedger);
+        ledgerCategoryRepository.save(foodCategory);
+        ledgerCategoryRepository.save(transportCategory);
+
+        mockMvc.perform(get("/budgets")
+                        .principal(() -> "Alice"))
+                .andExpect(status().isOk())
+                .andDo(print())
+                .andExpect(jsonPath("$.userBudget.amount").value(2000))
+                .andExpect(jsonPath("$.userBudget.spent").value(270))
+                .andExpect(jsonPath("$.userBudget.remaining").value(1730))
+                .andExpect(jsonPath("$.categoryBudgets", hasSize(2)))
+                .andExpect(jsonPath("$.categoryBudgets[0].categoryName").value("Food"))
+                .andExpect(jsonPath("$.categoryBudgets[1].categoryName").value("Transport"))
+                .andExpect(jsonPath("$.categoryBudgets[0].amount").value(800))
+                .andExpect(jsonPath("$.categoryBudgets[0].spent").value(170))
+                .andExpect(jsonPath("$.categoryBudgets[0].remaining").value(630))
+                .andExpect(jsonPath("$.categoryBudgets[1].amount").value(150))
+                .andExpect(jsonPath("$.categoryBudgets[1].spent").value(100))
+                .andExpect(jsonPath("$.categoryBudgets[1].remaining").value(50));
+    }
+
+    //get category budget with subcategory budgets
+    @Test
+    @WithMockUser(username = "Alice")
+    public void testGetCategoryBudget_withSubcategoryBudgets() throws Exception {
+        Budget foodBudget = new Budget(BigDecimal.valueOf(800), Budget.Period.MONTHLY, foodCategory, testUser);
+        budgetRepository.save(foodBudget);
+        foodCategory.getBudgets().add(foodBudget);
+
+        Budget lunchBudget = new Budget(BigDecimal.valueOf(300), Budget.Period.MONTHLY, lunch, testUser);
+        budgetRepository.save(lunchBudget);
+        lunch.getBudgets().add(lunchBudget);
+
+
+        Transaction tx1=new Expense(LocalDate.now(), BigDecimal.valueOf(170), null, testAccount1,testLedger,foodCategory);
+        transactionRepository.save(tx1);
+        testLedger.getTransactions().add(tx1);
+        testAccount1.addTransaction(tx1);
+        foodCategory.getTransactions().add(tx1);
+
+        Transaction tx3=new Expense(LocalDate.now(), BigDecimal.valueOf(50), null, testAccount1,testLedger, lunch);
+        transactionRepository.save(tx3);
+        testLedger.getTransactions().add(tx3);
+        testAccount1.addTransaction(tx3);
+        lunch.getTransactions().add(tx3);
+
+        accountRepository.save(testAccount1);
+        ledgerRepository.save(testLedger);
+        ledgerCategoryRepository.save(foodCategory);
+        ledgerCategoryRepository.save(lunch);
+
+
+
+        mockMvc.perform(get("/budgets/{id}", foodBudget.getId())
+                        .principal(() -> "Alice"))
+                .andExpect(status().isOk())
+                .andDo(print())
+                .andExpect(jsonPath("$.category").value("Food"))
+                .andExpect(jsonPath("$.amount").value(800))
+                .andExpect(jsonPath("$.spent").value(220))
+                .andExpect(jsonPath("$.remaining").value(580))
+                .andExpect(jsonPath("$.subCategoryBudgets", hasSize(1)))
+                .andExpect(jsonPath("$.subCategoryBudgets[0].subCategory").value("Lunch"))
+                .andExpect(jsonPath("$.subCategoryBudgets[0].amount").value(300))
+                .andExpect(jsonPath("$.subCategoryBudgets[0].spent").value(50))
+                .andExpect(jsonPath("$.subCategoryBudgets[0].remaining").value(250));
     }
 
 }
