@@ -27,11 +27,11 @@ public class UserController {
     @Transactional
     public ResponseEntity<String> register(@RequestParam String username,
                                            @RequestParam String password) {
-        if (userRepository.findByUsername(username) != null) {
-            return ResponseEntity.status(HttpStatus.CONFLICT).body("Username already exists");
-        }
         if(username == null || username.isEmpty()){
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Username cannot be empty");
+        }
+        if (userRepository.findByUsername(username) != null) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body("Username already exists");
         }
         if(password == null || password.isEmpty()){
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Password cannot be empty");
@@ -78,7 +78,7 @@ public class UserController {
         if (user == null) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("User not found");
         }
-        if(username != null){user.setUsername(username);}
+        if(username != null && !username.isEmpty()){user.setUsername(username);}
         if (password != null && !password.isEmpty()) {
             user.setPassword(PasswordUtils.hash(password));
         }

@@ -111,7 +111,6 @@ public class LoanAccount extends Account {
         }
         this.repaymentType = repaymentType;
     }
-    public LocalDate getRepaymentDay(){return this.repaymentDay;}
     public void updateRemainingAmount() { //metodo per aggiornare remainingAmount se si cambia loanAmount, totalPeriods, repaidPeriods o annualInterestRate
         this.remainingAmount = calculateRemainingLoanAmountWithRepaidPeriods();
     }
