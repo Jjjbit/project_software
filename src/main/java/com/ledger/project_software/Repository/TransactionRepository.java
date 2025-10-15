@@ -54,7 +54,7 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
             "ORDER BY t.date DESC")
     List<Transaction> findByAccountIdAndOwnerId(@Param("accountId") Long accountId,
                                                 @Param("ownerId") Long ownerId,
-                                                @Param("state") LocalDate start,
+                                                @Param("start") LocalDate start,
                                                 @Param("end") LocalDate end);
 
     @Query("SELECT t FROM Transaction t " +
