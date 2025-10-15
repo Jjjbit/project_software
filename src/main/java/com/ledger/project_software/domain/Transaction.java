@@ -25,12 +25,12 @@ public abstract class Transaction {
 
     @ManyToOne
     @JoinColumn(name = "from_account_id")
-    @JsonIgnoreProperties({"outgoingTransactions", "incomingTransactions"})
+    @JsonIgnoreProperties({"outgoingTransactions", "incomingTransactions", "transactions"})
     protected Account fromAccount; //relaizone tra Transaction e Account è associazione. più transazioni->un account
 
     @ManyToOne
     @JoinColumn(name = "to_account_id")
-    @JsonIgnoreProperties({"outgoingTransactions", "incomingTransactions"})
+    @JsonIgnoreProperties({"outgoingTransactions", "incomingTransactions", "transactions"})
     protected Account toAccount; //per i trasferimenti tra conti
 
     @ManyToOne
