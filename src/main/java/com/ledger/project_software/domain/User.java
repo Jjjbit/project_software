@@ -34,24 +34,12 @@ public class User {
     @JsonManagedReference("user-budgets")
     private List<Budget> budgets= new ArrayList<>();
 
-    @Column(name = "total_assets", precision = 15, scale = 2, nullable = true)
-    public BigDecimal totalAssets;
-
-    @Column(name = "total_liabilities", precision = 15, scale = 2, nullable = true)
-    public BigDecimal totalLiabilities;
-
-    @Column(name = "net_assets", precision = 15, scale = 2, nullable = true)
-    public BigDecimal netAssets;
-
     public User (){}
     public User(String username, String password){
         this.username = username;
         this.password = password;
     }
 
-    public List<Budget> getBudget() {
-        return budgets;
-    }
     public void setUsername(String username) {
         this.username = username;
     }
@@ -75,23 +63,7 @@ public class User {
     }
     public String getPassword(){return password;}
     public String getUsername(){return username;}
-    public void setBudget(BigDecimal amount, Budget.Period p, LedgerCategory c) {
-        budgets.add(new Budget(amount, p, c,this));
-    }
-    public void setTotalAssets(BigDecimal totalAssets) {
-        this.totalAssets = totalAssets;
-    }
-    public void setTotalLiabilities(BigDecimal totalLiabilities) {
-        this.totalLiabilities = totalLiabilities;
-    }
-    public void setNetAssets(BigDecimal netAssets) {
-        this.netAssets = netAssets;
-    }
 
-    public void addAccount(Account account) {
-        accounts.add(account);
-        account.setOwner(this);
-    }
 
 
     public BigDecimal getTotalLending(){
