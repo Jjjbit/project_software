@@ -9,17 +9,25 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.core.convert.converter.Converter;
+import org.springframework.format.FormatterRegistry;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.annotation.Rollback;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.YearMonth;
+import java.time.format.DateTimeFormatter;
+
+import static org.hamcrest.Matchers.hasSize;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 
 @SpringBootTest(classes = com.ledger.project_software.ProjectSoftwareApplication.class)
 @Transactional
@@ -73,6 +81,20 @@ public class LedgerCategoryTest {
         accountRepository.save(testAccount);
         testUser.getAccounts().add(testAccount);
         userRepository.save(testUser);
+    }
+
+    @Configuration //conterte String in YearMonth per i test
+    public class WebConfig implements WebMvcConfigurer {
+
+        @Override
+        public void addFormatters(FormatterRegistry registry) {
+            registry.addConverter(new Converter<String, YearMonth>() {
+                @Override
+                public YearMonth convert(String source) {
+                    return YearMonth.parse(source, DateTimeFormatter.ofPattern("yyyy-MM"));
+                }
+            });
+        }
     }
 
     @Test
@@ -629,6 +651,107 @@ public class LedgerCategoryTest {
 
         LedgerCategory updateFoodCategory=ledgerCategoryRepository.findByLedgerAndName(testLedger1, "Food");
         Assertions.assertEquals(0, updateFoodCategory.getChildren().size());
+
+    }
+
+    @Test
+    @WithMockUser(username = "Alice")
+    public void testGetTransactionForMonth() throws Exception {
+        LedgerCategory foodCategory = new LedgerCategory("Food", CategoryType.EXPENSE, testLedger1);
+        ledgerCategoryRepository.save(foodCategory);
+        testLedger1.getCategories().add(foodCategory);
+
+        LedgerCategory lunchCategory = new LedgerCategory("Lunch", CategoryType.EXPENSE, testLedger1);
+        ledgerCategoryRepository.save(lunchCategory);
+        lunchCategory.setParent(foodCategory);
+        foodCategory.getChildren().add(lunchCategory);
+        testLedger1.getCategories().add(lunchCategory);
+
+        Transaction tx1 = new Expense(LocalDate.of(2025, 06, 5),
+                BigDecimal.valueOf(10),
+                null,
+                testAccount,
+                testLedger1,
+                foodCategory
+        );
+        transactionRepository.save(tx1);
+        testLedger1.getTransactions().add(tx1);
+        testAccount.addTransaction(tx1);
+        foodCategory.getTransactions().add(tx1);
+
+        Transaction tx2 = new Expense(LocalDate.of(2025, 06, 6),
+                BigDecimal.valueOf(20),
+                null,
+                testAccount,
+                testLedger1,
+                lunchCategory
+        );
+        transactionRepository.save(tx2);
+        testLedger1.getTransactions().add(tx2);
+        testAccount.addTransaction(tx2);
+        lunchCategory.getTransactions().add(tx2);
+
+        ledgerCategoryRepository.save(foodCategory);
+        ledgerCategoryRepository.save(lunchCategory);
+        ledgerRepository.save(testLedger1);
+        accountRepository.save(testAccount);
+
+        mockMvc.perform(get("/ledger-categories/{id}/all-transactions-for-month", foodCategory.getId())
+                        .param("month", "2025-06")
+                        .principal(() -> "Alice"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(2)))
+                .andExpect(jsonPath("$[0].amount").value(20))
+                .andExpect(jsonPath("$[1].amount").value(10));
+
+        mockMvc.perform(get("/ledger-categories/{id}/all-transactions-for-month", lunchCategory.getId())
+                        .param("month", "2025-06")
+                        .principal(() -> "Alice"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(1)))
+                .andExpect(jsonPath("$[0].amount").value(20));
+
+        Transaction tx3 = new Expense(LocalDate.now(),
+                BigDecimal.valueOf(30),
+                null,
+                testAccount,
+                testLedger1,
+                lunchCategory
+        );
+        transactionRepository.save(tx3);
+        testLedger1.getTransactions().add(tx3);
+        testAccount.addTransaction(tx3);
+        lunchCategory.getTransactions().add(tx3);
+
+        Transaction tx4 = new Expense(LocalDate.now(),
+                BigDecimal.valueOf(40),
+                null,
+                testAccount,
+                testLedger1,
+                foodCategory
+        );
+        transactionRepository.save(tx4);
+        testLedger1.getTransactions().add(tx4);
+        testAccount.addTransaction(tx4);
+        foodCategory.getTransactions().add(tx4);
+
+        ledgerCategoryRepository.save(foodCategory);
+        ledgerCategoryRepository.save(lunchCategory);
+        ledgerRepository.save(testLedger1);
+        accountRepository.save(testAccount);
+
+        mockMvc.perform(get("/ledger-categories/{id}/all-transactions-for-month", foodCategory.getId())
+                        .principal(() -> "Alice"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(2)))
+                .andExpect(jsonPath("$[0].amount").value(40))
+                .andExpect(jsonPath("$[1].amount").value(30));
+
+        mockMvc.perform(get("/ledger-categories/{id}/all-transactions-for-month", lunchCategory.getId())
+                        .principal(() -> "Alice"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(1)))
+                .andExpect(jsonPath("$[0].amount").value(30));
 
     }
 
