@@ -62,14 +62,8 @@ public class Ledger {
                 .sorted(Comparator.comparing(Transaction::getDate).reversed())
                 .toList();
     }
-    public List<Transaction> getTransactionsForYear(int year) {
-        return transactions.stream()
-                .filter(tx -> tx.getDate().getYear() == year)
-                .sorted(Comparator.comparing(Transaction::getDate).reversed())
-                .toList();
-    }
 
-    public BigDecimal getTotalIncomeForMonth(YearMonth month) {
+    public BigDecimal getTotalIncomeForMonth(YearMonth month) { //used by test
         return getTransactionsForMonth(month).stream()
                 .filter(tx -> tx.getType() == TransactionType.INCOME)
                 .map(Transaction::getAmount)
@@ -83,29 +77,7 @@ public class Ledger {
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
-    public BigDecimal getRemainingForMonth(YearMonth month) {
-        BigDecimal totalIncome = getTotalIncomeForMonth(month);
-        BigDecimal totalExpense = getTotalExpenseForMonth(month);
-        return totalIncome.subtract(totalExpense);
 
-    }
-    public BigDecimal getTotalIncomeForYear(int year) {
-        return getTransactionsForYear(year).stream()
-                .filter(tx ->  tx.getType() == TransactionType.INCOME)
-                .map(Transaction::getAmount)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-    }
-    public BigDecimal getTotalExpenseForYear(int year) {
-        return getTransactionsForYear(year).stream()
-                .filter(tx -> tx.getType() == TransactionType.EXPENSE)
-                .map(Transaction::getAmount)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-    }
 
-    public BigDecimal getRemainingForYear(int year) {
-        BigDecimal totalIncome = getTotalIncomeForYear(year);
-        BigDecimal totalExpense = getTotalExpenseForYear(year);
-        return totalIncome.subtract(totalExpense);
-    }
 
 }
