@@ -6,10 +6,12 @@ import com.ledger.project_software.domain.*;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -23,7 +25,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 
-@SpringBootTest
+@ExtendWith(MockitoExtension.class)
 public class UserStructuralTest {
     @Mock
     private UserRepository userRepository; //mock del repository per simulare il comportamento senza collegarsi al database
@@ -31,10 +33,6 @@ public class UserStructuralTest {
     @InjectMocks
     private UserController userController;
 
-    @BeforeEach
-    public void setUp() {
-        MockitoAnnotations.openMocks(this); // inizializza i mock e gli injectMocks
-    }
 
     @Test
     public void testGetTotalLending() {
