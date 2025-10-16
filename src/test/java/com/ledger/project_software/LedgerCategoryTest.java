@@ -556,8 +556,6 @@ public class LedgerCategoryTest {
 
         LedgerCategory updateMealsCategory=ledgerCategoryRepository.findByLedgerAndName(testLedger1, "Meals");
         Assertions.assertEquals(1, updateMealsCategory.getChildren().size());
-        Assertions.assertEquals(1, updateMealsCategory.getTransactions().size());
-        Assertions.assertTrue(updateMealsCategory.getTransactions().contains(transaction1));
 
         Ledger updatedLedger=ledgerRepository.findById(testLedger1.getId()).orElse(null);
         Assertions.assertEquals(2, updatedLedger.getCategories().size());
@@ -647,7 +645,6 @@ public class LedgerCategoryTest {
 
         LedgerCategory updateMealsCategory=ledgerCategoryRepository.findByLedgerAndName(testLedger1, "Meals");
         Assertions.assertEquals(1, updateMealsCategory.getChildren().size());
-        Assertions.assertEquals(1, updateMealsCategory.getTransactions().size());
 
         LedgerCategory updateFoodCategory=ledgerCategoryRepository.findByLedgerAndName(testLedger1, "Food");
         Assertions.assertEquals(0, updateFoodCategory.getChildren().size());

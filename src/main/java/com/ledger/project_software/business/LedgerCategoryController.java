@@ -213,9 +213,6 @@ public class LedgerCategoryController {
 
         List<Budget> budgetsToDelete = new ArrayList<>(category.getBudgets());
         budgetRepository.deleteAll(budgetsToDelete);
-        /*for (Budget b : budgetsToDelete) {
-            budgetRepository.delete(b);
-        }*/
 
         if (!deleteTransactions) {
             if(migrateToCategoryId == null) {
