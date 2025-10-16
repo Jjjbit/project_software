@@ -158,7 +158,7 @@ public class LedgerControllerTest {
         )).thenReturn(transactions);
 
         Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(ledgerRepository.findById(eq(testLedger.getId()))).thenReturn(java.util.Optional.of(testLedger));
+        Mockito.when(ledgerRepository.findById(eq(testLedger.getId()))).thenReturn(Optional.of(testLedger));
 
         mockMvc.perform(get("/ledgers/{ledgerId}/all-transactions-for-month", testLedger.getId())
                         .principal(() -> "Alice")

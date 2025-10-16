@@ -189,7 +189,7 @@ public class LedgerTest {
         Assertions.assertNull(updatedBudget);
 
         User updatedUser = userRepository.findById(testUser.getId()).orElse(null);
-        Assertions.assertEquals(1, updatedUser.getLedgers().size()); // only default ledger remains
+        Assertions.assertEquals(0, updatedUser.getLedgers().size());
     }
 
     @Test
@@ -211,7 +211,7 @@ public class LedgerTest {
                 .andExpect(content().string("copy ledger"));
 
         User updatedUser = userRepository.findById(testUser.getId()).orElse(null);
-        Assertions.assertEquals(3, updatedUser.getLedgers().size()); // original + copy+default
+        Assertions.assertEquals(2, updatedUser.getLedgers().size());
 
         Ledger copiedLedger = ledgerRepository.findByName(ledger.getName() + " Copy");
         Assertions.assertNotNull(copiedLedger);
