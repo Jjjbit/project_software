@@ -104,7 +104,7 @@ public class AccountControllerTest {
     @WithMockUser(username = "Alice")
     public void testGetMyAccounts() throws Exception {
         Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(accountRepository.findByOwner(Mockito.any(User.class))).thenReturn(testAccounts);
+        Mockito.when(accountRepository.findByOwnerId(eq(testUser.getId()))).thenReturn(testAccounts);
 
         mockMvc.perform(get("/accounts/all-accounts")
                         .principal(() -> "Alice"))
