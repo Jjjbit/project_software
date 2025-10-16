@@ -636,7 +636,6 @@ public class LedgerStructuralTest {
 
     @Test
     public void testGetLedgerTransactionsForMonth_Success_WithoutMonth() {
-        YearMonth month = YearMonth.of(2025, 10);
         Transaction tx1 = new Expense(LocalDate.now(),
                 BigDecimal.valueOf(50),
                 "Lunch",
