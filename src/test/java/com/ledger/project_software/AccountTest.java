@@ -1974,6 +1974,42 @@ public class AccountTest {
 
     @Test
     @WithMockUser(username = "Alice")
+    public void testGetMyAccounts_WithHiddenAccount() throws Exception {
+        Account account1 = new BasicAccount("Visible Account",
+                BigDecimal.valueOf(1000),
+                null,
+                true,
+                true,
+                AccountType.CASH,
+                AccountCategory.FUNDS,
+                testUser);
+        accountRepository.save(account1);
+        testUser.getAccounts().add(account1);
+
+        Account account2 = new BasicAccount("Hidden Account",
+                BigDecimal.valueOf(500),
+                null,
+                true,
+                true,
+                AccountType.CASH,
+                AccountCategory.FUNDS,
+                testUser);
+        accountRepository.save(account2);
+        testUser.getAccounts().add(account2);
+        account2.hide();
+        userRepository.save(testUser);
+
+        mockMvc.perform(get("/accounts/all-accounts")
+                        .principal(() -> "Alice"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(1)))
+                .andExpect(jsonPath("$[0].name").value("Visible Account"))
+                .andExpect(jsonPath("$[0].balance").value(1000));
+    }
+
+
+    @Test
+    @WithMockUser(username = "Alice")
     public void testGetTransactionsForAccount() throws Exception {
         Account account1 = new BasicAccount("Cash Account",
                 BigDecimal.valueOf(1000),
