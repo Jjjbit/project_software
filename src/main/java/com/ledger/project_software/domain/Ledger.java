@@ -42,6 +42,7 @@ public class Ledger {
     public String getName(){return this.name;}
     public void setName(String name){this.name=name;}
     public User getOwner(){return this.owner;}
+    public void setOwner(User owner){this.owner=owner;}
     public List<Transaction> getTransactions() {
         return transactions;
     }

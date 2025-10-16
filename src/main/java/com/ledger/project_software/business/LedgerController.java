@@ -97,11 +97,7 @@ public class LedgerController {
     @Transactional
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<String> deleteLedger(@PathVariable Long ledgerId,
-                                                  Principal principal) {
-        Ledger ledger = ledgerRepository.findById(ledgerId).orElse(null);
-        if (ledger == null) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Ledger not found");
-        }
+                                               Principal principal) {
         if(principal == null){
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized access");
         }
@@ -109,6 +105,11 @@ public class LedgerController {
         User owner=userRepository.findByUsername(principal.getName());
         if (owner == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized access");
+        }
+
+        Ledger ledger = ledgerRepository.findById(ledgerId).orElse(null);
+        if (ledger == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Ledger not found");
         }
 
         List<Transaction> transactionsToDelete = new ArrayList<>(ledger.getTransactions());
@@ -178,6 +179,10 @@ public class LedgerController {
         if(principal == null){
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized access");
         }
+        User owner=userRepository.findByUsername(principal.getName());
+        if (owner == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized access");
+        }
         if(ledgerId == null){
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Invalid ledger ID");
         }
@@ -186,10 +191,6 @@ public class LedgerController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Ledger not found");
         }
 
-        User owner=userRepository.findByUsername(principal.getName());
-        if (owner == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized access");
-        }
         if(!ledger.getOwner().getId().equals(owner.getId())) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body("You do not have permission to copy this ledger");
         }
@@ -241,14 +242,25 @@ public class LedgerController {
         if(principal == null){
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized access");
         }
-        Ledger ledger = ledgerRepository.findById(ledgerId).orElse(null);
-        if (ledger == null) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Ledger not found");
-        }
 
         User owner=userRepository.findByUsername(principal.getName());
         if (owner == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized access");
+        }
+
+        if(ledgerId == null){
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Invalid ledger ID");
+        }
+        Ledger ledger = ledgerRepository.findById(ledgerId).orElse(null);
+        if (ledger == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Ledger not found");
+        }
+        if(!ledger.getOwner().getId().equals(owner.getId())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("You do not have permission to rename this ledger");
+        }
+
+        if(newName == null || newName.trim().isEmpty()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("ledger name cannot be empty");
         }
 
         if(ledgerRepository.findByName(newName) != null) {
@@ -257,12 +269,6 @@ public class LedgerController {
             }else{
                 return ResponseEntity.ok("Ledger renamed successfully");
             }
-        }
-        if(!ledger.getOwner().getId().equals(owner.getId())) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("You do not have permission to rename this ledger");
-        }
-        if(newName == null || newName.trim().isEmpty()) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("ledger name cannot be empty");
         }
 
         ledger.setName(newName);
@@ -298,6 +304,9 @@ public class LedgerController {
         User user = userRepository.findByUsername(principal.getName());
         if (user == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        if(ledgerId == null){
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
         Ledger ledger = ledgerRepository.findById(ledgerId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Ledger not found"));
@@ -384,6 +393,10 @@ public class LedgerController {
         User user = userRepository.findByUsername(principal.getName());
         if (user == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        if (ledgerId == null) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
 
         Ledger ledger = ledgerRepository.findById(ledgerId)
