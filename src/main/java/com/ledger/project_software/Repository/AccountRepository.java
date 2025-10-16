@@ -1,8 +1,9 @@
 package com.ledger.project_software.Repository;
 
 import com.ledger.project_software.domain.Account;
-import com.ledger.project_software.domain.User;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -10,5 +11,9 @@ import java.util.List;
 @Repository
 public interface AccountRepository extends JpaRepository<Account, Long> {
     Account findByName(String name);
-    List<Account> findByOwner(User owner);
+
+    @Query("SELECT a FROM Account a " +
+            "WHERE a.owner.id = :ownerId" +
+            " AND a.hidden = false")
+    List<Account> findByOwnerId(@Param("ownerId") Long ownerId);
 }

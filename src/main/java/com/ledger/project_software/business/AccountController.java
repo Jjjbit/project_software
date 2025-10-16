@@ -16,11 +16,7 @@ import java.math.RoundingMode;
 import java.security.Principal;
 import java.time.LocalDate;
 import java.time.YearMonth;
-import java.time.format.DateTimeFormatter;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/accounts")
@@ -1154,7 +1150,8 @@ public class AccountController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
 
-        List<Account> accounts = accountRepository.findByOwner(user);
+        List<Account> accounts = accountRepository.findByOwnerId(user.getId());
+
         return ResponseEntity.ok(accounts);
     }
 
