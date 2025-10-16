@@ -286,7 +286,7 @@ public class LedgerTest {
 
     @Test
     @WithMockUser(username = "Alice")
-    public void testGetLedgerTransactions() throws Exception {
+    public void testGetLedgerTransactionsForMonth_WithMonth() throws Exception {
         Ledger testLedger = new Ledger("Test Ledger", testUser);
         ledgerRepository.save(testLedger);
         testUser.getLedgers().add(testLedger);
@@ -322,6 +322,50 @@ public class LedgerTest {
         mockMvc.perform(get("/ledgers/{ledgerId}/all-transactions-for-month", testLedger.getId())
                         .principal(() -> "Alice")
                         .param("month", "2025-10"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(2)))
+                .andExpect(jsonPath("$[0].amount").value(100))
+                .andExpect(jsonPath("$[1].amount").value(50));
+
+    }
+
+    @Test
+    @WithMockUser(username = "Alice")
+    public void testGetLedgerTransactionsForMonth_WithoutMonth() throws Exception {
+        Ledger testLedger = new Ledger("Test Ledger", testUser);
+        ledgerRepository.save(testLedger);
+        testUser.getLedgers().add(testLedger);
+
+        Transaction tx1 = new Transfer(LocalDate.now(),
+                null,
+                testAccount1,
+                testAccount2,
+                BigDecimal.valueOf(100),
+                testLedger
+        );
+        transactionRepository.save(tx1);
+        testAccount1.addTransaction(tx1);
+        testAccount2.addTransaction(tx1);
+        testLedger.getTransactions().add(tx1);
+
+        Transaction tx2 = new Transfer(LocalDate.now(),
+                null,
+                testAccount2,
+                testAccount1,
+                BigDecimal.valueOf(50),
+                testLedger
+        );
+        transactionRepository.save(tx2);
+        testAccount1.addTransaction(tx2);
+        testAccount2.addTransaction(tx2);
+        testLedger.getTransactions().add(tx2);
+
+        accountRepository.save(testAccount1);
+        accountRepository.save(testAccount2);
+        ledgerRepository.save(testLedger);
+
+        mockMvc.perform(get("/ledgers/{ledgerId}/all-transactions-for-month", testLedger.getId())
+                        .principal(() -> "Alice"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(2)))
                 .andExpect(jsonPath("$[0].amount").value(100))
