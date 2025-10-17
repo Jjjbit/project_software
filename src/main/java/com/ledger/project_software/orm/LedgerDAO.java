@@ -1,4 +1,4 @@
-package com.ledger.project_software.Repository;
+package com.ledger.project_software.orm;
 
 import com.ledger.project_software.domain.Ledger;
 import com.ledger.project_software.domain.User;
@@ -8,7 +8,7 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 
 @Repository
-public interface LedgerRepository extends JpaRepository<Ledger, Long> {
+public interface LedgerDAO extends JpaRepository<Ledger, Long> {
     Ledger findByName(String name);
     List<Ledger> findByOwner(User owner);
 }

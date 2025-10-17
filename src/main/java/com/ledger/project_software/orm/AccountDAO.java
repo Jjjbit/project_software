@@ -1,4 +1,4 @@
-package com.ledger.project_software.Repository;
+package com.ledger.project_software.orm;
 
 import com.ledger.project_software.domain.Account;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -9,7 +9,7 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 
 @Repository
-public interface AccountRepository extends JpaRepository<Account, Long> {
+public interface AccountDAO extends JpaRepository<Account, Long> {
     Account findByName(String name);
 
     @Query("SELECT a FROM Account a " +

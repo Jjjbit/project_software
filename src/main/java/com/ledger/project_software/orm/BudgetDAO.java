@@ -1,4 +1,4 @@
-package com.ledger.project_software.Repository;
+package com.ledger.project_software.orm;
 
 import com.ledger.project_software.domain.Budget;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -11,7 +11,7 @@ import java.util.List;
 import java.util.Optional;
 
 @Repository
-public interface BudgetRepository extends JpaRepository<Budget, Long> {
+public interface BudgetDAO extends JpaRepository<Budget, Long> {
     @Query("SELECT b FROM Budget b " +
             "WHERE b.owner.id = :userId " +
             "AND b.category IS NULL " +

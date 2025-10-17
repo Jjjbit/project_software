@@ -1,4 +1,4 @@
-package com.ledger.project_software.Repository;
+package com.ledger.project_software.orm;
 
 import com.ledger.project_software.domain.Transaction;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -11,7 +11,7 @@ import java.time.LocalDate;
 import java.util.List;
 
 @Repository
-public interface TransactionRepository extends JpaRepository<Transaction, Long> {
+public interface TransactionDAO extends JpaRepository<Transaction, Long> {
     //total expense for user in period
     @Query("SELECT COALESCE(SUM(t.amount), 0) FROM Transaction t " +
             "WHERE t.ledger IN (SELECT l FROM Ledger l WHERE l.owner.id = :userId) " +

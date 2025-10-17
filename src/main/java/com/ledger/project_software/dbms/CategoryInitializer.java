@@ -1,6 +1,6 @@
 package com.ledger.project_software.dbms;
 
-import com.ledger.project_software.Repository.CategoryRepository;
+import com.ledger.project_software.orm.CategoryDAO;
 import com.ledger.project_software.domain.Category;
 import com.ledger.project_software.domain.CategoryType;
 import jakarta.annotation.PostConstruct;
@@ -10,7 +10,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class CategoryInitializer {
     @Autowired
-    private CategoryRepository categoryRepository;
+    private CategoryDAO categoryRepository;
 
     @PostConstruct
     public void init() {
