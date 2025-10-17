@@ -109,7 +109,7 @@ public class InstallmentPlan {
             case EVENLY_SPLIT:
                 return (totalAmount.add(fee)).divide(BigDecimal.valueOf(totalPeriods), 2, RoundingMode.HALF_UP); //(totalAmount+fee)/totalPeriods
             case UPFRONT:
-                if(period == 0) {
+                if(period == 1) {
                     return base.add(fee).setScale(2, RoundingMode.HALF_UP); //first payment includes all fees
                 } else {
                     return base; //subsequent payments are just the base amount
