@@ -1,6 +1,6 @@
 package com.ledger.project_software;
 
-import com.ledger.project_software.Repository.UserRepository;
+import com.ledger.project_software.orm.UserDAO;
 import com.ledger.project_software.business.UserController;
 import com.ledger.project_software.domain.*;
 import org.junit.jupiter.api.Assertions;
@@ -25,7 +25,7 @@ import java.util.Map;
 @ExtendWith(MockitoExtension.class)
 public class UserStructuralTest {
     @Mock
-    private UserRepository userRepository; //mock del repository per simulare il comportamento senza collegarsi al database
+    private UserDAO userRepository; //mock del repository per simulare il comportamento senza collegarsi al database
 
     @InjectMocks
     private UserController userController;

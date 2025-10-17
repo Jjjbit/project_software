@@ -1,6 +1,6 @@
 package com.ledger.project_software;
 
-import com.ledger.project_software.Repository.*;
+import com.ledger.project_software.orm.*;
 import com.ledger.project_software.business.LedgerCategoryController;
 import com.ledger.project_software.domain.*;
 import org.junit.jupiter.api.BeforeEach;
@@ -29,19 +29,19 @@ import static org.junit.jupiter.api.Assertions.*;
 public class LedgerCategoryStructuralTest {
 
     @Mock
-    private UserRepository userRepository;
+    private UserDAO userRepository;
 
     @Mock
-    private LedgerRepository ledgerRepository;
+    private LedgerDAO ledgerRepository;
 
     @Mock
-    private LedgerCategoryRepository ledgerCategoryRepository;
+    private LedgerCategoryDAO ledgerCategoryRepository;
 
     @Mock
-    private TransactionRepository transactionRepository;
+    private TransactionDAO transactionRepository;
 
     @Mock
-    private BudgetRepository budgetRepository;
+    private BudgetDAO budgetRepository;
 
     @InjectMocks
     private LedgerCategoryController ledgerCategoryController;

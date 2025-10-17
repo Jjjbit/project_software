@@ -1,6 +1,6 @@
 package com.ledger.project_software;
 
-import com.ledger.project_software.Repository.*;
+import com.ledger.project_software.orm.*;
 import com.ledger.project_software.domain.*;
 import jakarta.transaction.Transactional;
 import org.junit.jupiter.api.Assertions;
@@ -29,11 +29,11 @@ public class TransactionTest {
     private MockMvc mockMvc;
 
     @Autowired
-    private UserRepository userRepository;
+    private UserDAO userRepository;
     @Autowired
-    private LedgerRepository ledgerRepository;
+    private LedgerDAO ledgerRepository;
     @Autowired
-    private AccountRepository accountRepository;
+    private AccountDAO accountRepository;
 
     private User testUser;
     private Ledger testLedger1;
@@ -41,9 +41,9 @@ public class TransactionTest {
     private LedgerCategory testCategory1;
     private LedgerCategory testCategory2;
     @Autowired
-    private TransactionRepository transactionRepository;
+    private TransactionDAO transactionRepository;
     @Autowired
-    private LedgerCategoryRepository ledgerCategoryRepository;
+    private LedgerCategoryDAO ledgerCategoryRepository;
 
     @BeforeEach
     public void setUp(){

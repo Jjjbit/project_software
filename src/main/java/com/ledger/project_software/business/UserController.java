@@ -1,10 +1,9 @@
 package com.ledger.project_software.business;
 
-import com.ledger.project_software.Repository.UserRepository;
+import com.ledger.project_software.orm.UserDAO;
 import com.ledger.project_software.domain.Ledger;
 import com.ledger.project_software.domain.PasswordUtils;
 import com.ledger.project_software.domain.User;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -19,9 +18,11 @@ import java.util.Map;
 @RestController
 @RequestMapping("/users")
 public class UserController {
+    private final UserDAO userDAO;
 
-    @Autowired
-    private UserRepository userRepository;
+    public UserController(UserDAO userDAO) {
+        this.userDAO = userDAO;
+    }
 
     @PostMapping("/register")
     @Transactional
@@ -30,7 +31,7 @@ public class UserController {
         if(username == null || username.isEmpty()){
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Username cannot be empty");
         }
-        if (userRepository.findByUsername(username) != null) {
+        if (userDAO.findByUsername(username) != null) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body("Username already exists");
         }
         if(password == null || password.isEmpty()){
@@ -45,7 +46,7 @@ public class UserController {
         User user = new User(username, PasswordUtils.hash(password));
         Ledger defaultLedger = new Ledger("Default Ledger", user);
         user.getLedgers().add(defaultLedger);
-        userRepository.save(user);
+        userDAO.save(user);
         return ResponseEntity.ok("Registration successful");
     }
 
@@ -53,7 +54,7 @@ public class UserController {
     @PostMapping("/login")
     public ResponseEntity<String> login(@RequestParam String username,
                                         @RequestParam String password) {
-        User existingUser = userRepository.findByUsername(username);
+        User existingUser = userDAO.findByUsername(username);
         if (existingUser == null) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("User not found");
         }
@@ -74,7 +75,7 @@ public class UserController {
         if (principal == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Not logged in");
         }
-        User user = userRepository.findByUsername(principal.getName());
+        User user = userDAO.findByUsername(principal.getName());
         if (user == null) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("User not found");
         }
@@ -82,7 +83,7 @@ public class UserController {
         if (password != null && !password.isEmpty()) {
             user.setPassword(PasswordUtils.hash(password));
         }
-        userRepository.save(user);
+        userDAO.save(user);
         return ResponseEntity.ok("User info updated");
     }
 
@@ -92,7 +93,7 @@ public class UserController {
         if (principal == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
-        User user = userRepository.findByUsername(principal.getName());
+        User user = userDAO.findByUsername(principal.getName());
         if (user == null) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
         }

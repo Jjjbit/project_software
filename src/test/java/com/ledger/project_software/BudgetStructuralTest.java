@@ -1,9 +1,9 @@
 package com.ledger.project_software;
 
-import com.ledger.project_software.Repository.BudgetRepository;
-import com.ledger.project_software.Repository.LedgerCategoryRepository;
-import com.ledger.project_software.Repository.TransactionRepository;
-import com.ledger.project_software.Repository.UserRepository;
+import com.ledger.project_software.orm.BudgetDAO;
+import com.ledger.project_software.orm.LedgerCategoryDAO;
+import com.ledger.project_software.orm.TransactionDAO;
+import com.ledger.project_software.orm.UserDAO;
 import com.ledger.project_software.business.BudgetController;
 import com.ledger.project_software.domain.*;
 import org.junit.jupiter.api.BeforeEach;
@@ -31,16 +31,16 @@ import static org.junit.jupiter.api.Assertions.*;
 @ExtendWith(MockitoExtension.class)
 public class BudgetStructuralTest {
     @Mock
-    private UserRepository userRepository;
+    private UserDAO userRepository;
 
     @Mock
-    private BudgetRepository budgetRepository;
+    private BudgetDAO budgetRepository;
 
     @Mock
-    private LedgerCategoryRepository ledgerCategoryRepository;
+    private LedgerCategoryDAO ledgerCategoryRepository;
 
     @Mock
-    private TransactionRepository transactionRepository;
+    private TransactionDAO transactionRepository;
 
     @InjectMocks
     private BudgetController budgetController;

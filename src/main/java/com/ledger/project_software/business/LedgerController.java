@@ -1,7 +1,6 @@
 package com.ledger.project_software.business;
-import com.ledger.project_software.Repository.*;
+import com.ledger.project_software.orm.*;
 import com.ledger.project_software.domain.*;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -19,23 +18,26 @@ import java.util.*;
 @RestController
 @RequestMapping("/ledgers")
 public class LedgerController {
-    @Autowired
-    private LedgerRepository ledgerRepository;
+    private final LedgerDAO ledgerDAO;
+    private final UserDAO userDAO;
+    private final CategoryDAO categoryDAO;
+    private final AccountDAO accountDAO;
+    private final TransactionDAO transactionRepository;
+    private final LedgerCategoryDAO ledgerCategoryRepository;
 
-    @Autowired
-    private UserRepository userRepository;
-
-    @Autowired
-    private CategoryRepository categoryRepository;
-
-    @Autowired
-    private AccountRepository accountRepository;
-
-    @Autowired
-    private TransactionRepository transactionRepository;
-
-    @Autowired
-    private LedgerCategoryRepository ledgerCategoryRepository;
+    public LedgerController(LedgerDAO ledgerDAO,
+                            UserDAO userDAO,
+                            CategoryDAO categoryDAO,
+                            AccountDAO accountDAO,
+                            TransactionDAO transactionRepository,
+                            LedgerCategoryDAO ledgerCategoryRepository) {
+        this.ledgerDAO = ledgerDAO;
+        this.userDAO = userDAO;
+        this.categoryDAO = categoryDAO;
+        this.accountDAO = accountDAO;
+        this.transactionRepository = transactionRepository;
+        this.ledgerCategoryRepository = ledgerCategoryRepository;
+    }
 
     @PostMapping("/create")
     @Transactional
@@ -45,19 +47,19 @@ public class LedgerController {
         if(principal == null){
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized access");
         }
-        User owner=userRepository.findByUsername(principal.getName());
+        User owner= userDAO.findByUsername(principal.getName());
         if (owner == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User not found");
         }
 
-        if(ledgerRepository.findByName(name) != null) {
+        if(ledgerDAO.findByName(name) != null) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body("Ledger name already exists");
         }
 
         Ledger ledger=new Ledger(name, owner);
-        ledgerRepository.save(ledger);
+        ledgerDAO.save(ledger);
 
-        List<Category> templateCategories = categoryRepository.findByParentIsNull();
+        List<Category> templateCategories = categoryDAO.findByParentIsNull();
 
         //copia albero di categorycomponent dal database a ledger
         for (Category template : templateCategories) {
@@ -102,12 +104,12 @@ public class LedgerController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized access");
         }
 
-        User owner=userRepository.findByUsername(principal.getName());
+        User owner= userDAO.findByUsername(principal.getName());
         if (owner == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized access");
         }
 
-        Ledger ledger = ledgerRepository.findById(ledgerId).orElse(null);
+        Ledger ledger = ledgerDAO.findById(ledgerId).orElse(null);
         if (ledger == null) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Ledger not found");
         }
@@ -123,27 +125,27 @@ public class LedgerController {
                     to.debit(tx.getAmount()); //modifica bilancio account
                     to.getIncomingTransactions().remove(tx); //rimuove tx da account
                     tx.setToAccount(null); //rimuove riferimento a account in tx
-                    accountRepository.save(to); //salva modifiche a account
+                    accountDAO.save(to); //salva modifiche a account
                 }
             } else if (tx instanceof Expense) {
                 if(from != null) {
                     from.credit(tx.getAmount());
                     from.getOutgoingTransactions().remove(tx);
                     tx.setFromAccount(null);
-                    accountRepository.save(from);
+                    accountDAO.save(from);
                 }
             } else if (tx instanceof Transfer) {
                 if(from != null) {
                     from.credit(tx.getAmount());
                     from.getOutgoingTransactions().remove(tx);
                     tx.setFromAccount(null);
-                    accountRepository.save(from);
+                    accountDAO.save(from);
                 }
                 if(to != null) {
                     to.debit(tx.getAmount());
                     to.getIncomingTransactions().remove(tx);
                     tx.setToAccount(null);
-                    accountRepository.save(to);
+                    accountDAO.save(to);
                 }
             }
 
@@ -166,7 +168,7 @@ public class LedgerController {
         }
 
         owner.getLedgers().remove(ledger); //rimuove ledger da user
-        ledgerRepository.delete(ledger);
+        ledgerDAO.delete(ledger);
         return ResponseEntity.ok("Ledger deleted successfully");
     }
 
@@ -179,14 +181,14 @@ public class LedgerController {
         if(principal == null){
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized access");
         }
-        User owner=userRepository.findByUsername(principal.getName());
+        User owner= userDAO.findByUsername(principal.getName());
         if (owner == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized access");
         }
         if(ledgerId == null){
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Invalid ledger ID");
         }
-        Ledger ledger = ledgerRepository.findById(ledgerId).orElse(null);
+        Ledger ledger = ledgerDAO.findById(ledgerId).orElse(null);
         if (ledger == null) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Ledger not found");
         }
@@ -206,7 +208,7 @@ public class LedgerController {
 
         }
 
-        ledgerRepository.save(newLedger);
+        ledgerDAO.save(newLedger);
         return ResponseEntity.ok("copy ledger");
     }
     private LedgerCategory copyLedgerCategory(LedgerCategory oldCategory, Ledger newLedger) {
@@ -243,7 +245,7 @@ public class LedgerController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized access");
         }
 
-        User owner=userRepository.findByUsername(principal.getName());
+        User owner= userDAO.findByUsername(principal.getName());
         if (owner == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized access");
         }
@@ -251,7 +253,7 @@ public class LedgerController {
         if(ledgerId == null){
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Invalid ledger ID");
         }
-        Ledger ledger = ledgerRepository.findById(ledgerId).orElse(null);
+        Ledger ledger = ledgerDAO.findById(ledgerId).orElse(null);
         if (ledger == null) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Ledger not found");
         }
@@ -263,8 +265,8 @@ public class LedgerController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("ledger name cannot be empty");
         }
 
-        if(ledgerRepository.findByName(newName) != null) {
-            if(!ledgerRepository.findByName(newName).getId().equals(ledgerId)) {//se il nome esiste ma appartiene ad un altro ledger
+        if(ledgerDAO.findByName(newName) != null) {
+            if(!ledgerDAO.findByName(newName).getId().equals(ledgerId)) {//se il nome esiste ma appartiene ad un altro ledger
                 return ResponseEntity.status(HttpStatus.CONFLICT).body("Ledger name already exists");
             }else{
                 return ResponseEntity.ok("Ledger renamed successfully");
@@ -272,7 +274,7 @@ public class LedgerController {
         }
 
         ledger.setName(newName);
-        ledgerRepository.save(ledger);
+        ledgerDAO.save(ledger);
         return ResponseEntity.ok("Ledger renamed successfully");
     }
 
@@ -284,12 +286,12 @@ public class LedgerController {
         if(principal == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
-        User user = userRepository.findByUsername(principal.getName());
+        User user = userDAO.findByUsername(principal.getName());
         if (user == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
 
-        List<Ledger> ledgers = ledgerRepository.findByOwner(user);
+        List<Ledger> ledgers = ledgerDAO.findByOwner(user);
         return ResponseEntity.ok(ledgers);
     }
 
@@ -301,14 +303,14 @@ public class LedgerController {
         if(principal == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
-        User user = userRepository.findByUsername(principal.getName());
+        User user = userDAO.findByUsername(principal.getName());
         if (user == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
         if(ledgerId == null){
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
-        Ledger ledger = ledgerRepository.findById(ledgerId)
+        Ledger ledger = ledgerDAO.findById(ledgerId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Ledger not found"));
         if(!ledger.getOwner().getId().equals(user.getId())) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
@@ -340,11 +342,11 @@ public class LedgerController {
         if(principal == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
-        User user = userRepository.findByUsername(principal.getName());
+        User user = userDAO.findByUsername(principal.getName());
         if (user == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
-        Ledger ledger = ledgerRepository.findById(ledgerId)
+        Ledger ledger = ledgerDAO.findById(ledgerId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Ledger not found"));
         if(!ledger.getOwner().getId().equals(user.getId())) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
@@ -390,7 +392,7 @@ public class LedgerController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
 
-        User user = userRepository.findByUsername(principal.getName());
+        User user = userDAO.findByUsername(principal.getName());
         if (user == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
@@ -399,7 +401,7 @@ public class LedgerController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
 
-        Ledger ledger = ledgerRepository.findById(ledgerId)
+        Ledger ledger = ledgerDAO.findById(ledgerId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Ledger not found"));
 
         if (!ledger.getOwner().getId().equals(user.getId())) {

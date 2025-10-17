@@ -1,8 +1,7 @@
 package com.ledger.project_software.business;
 
-import com.ledger.project_software.Repository.*;
+import com.ledger.project_software.orm.*;
 import com.ledger.project_software.domain.*;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -20,17 +19,23 @@ import java.util.List;
 @RestController
 @RequestMapping("/ledger-categories")
 public class LedgerCategoryController {
-    @Autowired
-    private UserRepository userRepository;
+    private final UserDAO userDAO;
+    private final LedgerCategoryDAO ledgerCategoryDAO;
+    private final LedgerDAO ledgerDAO;
+    private final BudgetDAO budgetDAO;
+   private final TransactionDAO transactionDAO;
 
-    @Autowired
-    private LedgerCategoryRepository ledgerCategoryRepository;
-    @Autowired
-    private LedgerRepository ledgerRepository;
-    @Autowired
-    private BudgetRepository budgetRepository;
-    @Autowired
-    private TransactionRepository transactionRepository;
+   public LedgerCategoryController(UserDAO userDAO,
+                                   LedgerCategoryDAO ledgerCategoryDAO,
+                                   LedgerDAO ledgerDAO,
+                                   BudgetDAO budgetDAO,
+                                   TransactionDAO transactionDAO) {
+        this.userDAO = userDAO;
+        this.ledgerCategoryDAO = ledgerCategoryDAO;
+        this.ledgerDAO = ledgerDAO;
+        this.budgetDAO = budgetDAO;
+        this.transactionDAO = transactionDAO;
+    }
 
     @PostMapping("/create-category")
     @Transactional
@@ -42,14 +47,14 @@ public class LedgerCategoryController {
         if(principal == null){
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized access");
         }
-        User user = userRepository.findByUsername(principal.getName());
+        User user = userDAO.findByUsername(principal.getName());
         if (user == null ) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized access");
         }
         if(ledgerId == null){
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Must provide ledgerId");
         }
-        Ledger ledger=ledgerRepository.findById(ledgerId)
+        Ledger ledger= ledgerDAO.findById(ledgerId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Ledger not found"));
         if(name == null || name.trim().isEmpty()){
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Name cannot be empty");
@@ -57,14 +62,14 @@ public class LedgerCategoryController {
         if(name.length() > 100){
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Name too long");
         }
-        if(ledgerCategoryRepository.existsByLedgerAndName(ledger, name)){
+        if(ledgerCategoryDAO.existsByLedgerAndName(ledger, name)){
             return ResponseEntity.status(HttpStatus.CONFLICT).body("Category name must be unique within the ledger");
         }
 
         LedgerCategory newCategory = new LedgerCategory(name, type, ledger);
-        ledgerCategoryRepository.save(newCategory);
+        ledgerCategoryDAO.save(newCategory);
         ledger.getCategories().add(newCategory);
-        ledgerRepository.save(ledger);
+        ledgerDAO.save(ledger);
         return ResponseEntity.ok("Category created successfully");
     }
 
@@ -79,7 +84,7 @@ public class LedgerCategoryController {
         if(principal == null){
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized access");
         }
-        User user = userRepository.findByUsername(principal.getName());
+        User user = userDAO.findByUsername(principal.getName());
         if (user == null ) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized access");
         }
@@ -87,7 +92,7 @@ public class LedgerCategoryController {
         if(parentId == null){
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Must provide parentId");
         }
-        LedgerCategory parent = ledgerCategoryRepository.findById(parentId)
+        LedgerCategory parent = ledgerCategoryDAO.findById(parentId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Parent category not found"));
         if (parent.getParent() != null) {
             return ResponseEntity.badRequest().body("Parent must be a Category");
@@ -95,7 +100,7 @@ public class LedgerCategoryController {
         if(ledgerId == null){
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Must provide ledgerId");
         }
-        Ledger ledger=ledgerRepository.findById(ledgerId)
+        Ledger ledger= ledgerDAO.findById(ledgerId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Ledger not found"));
 
         if(name == null || name.trim().isEmpty()){
@@ -104,7 +109,7 @@ public class LedgerCategoryController {
         if(name.length() > 100){
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Name too long");
         }
-        if(ledgerCategoryRepository.existsByLedgerAndName(ledger, name)){
+        if(ledgerCategoryDAO.existsByLedgerAndName(ledger, name)){
             return ResponseEntity.status(HttpStatus.CONFLICT).body("SubCategory name must be unique within the ledger");
         }
 
@@ -112,10 +117,10 @@ public class LedgerCategoryController {
         newSubCategory.setParent(parent);
         parent.getChildren().add(newSubCategory);
         //parent.addChild(newSubCategory);
-        ledgerCategoryRepository.save(newSubCategory);
+        ledgerCategoryDAO.save(newSubCategory);
         ledger.getCategories().add(newSubCategory);
-        ledgerRepository.save(ledger);
-        ledgerCategoryRepository.save(parent);
+        ledgerDAO.save(ledger);
+        ledgerCategoryDAO.save(parent);
         return ResponseEntity.ok("SubCategory created successfully");
     }
 
@@ -129,12 +134,12 @@ public class LedgerCategoryController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized access");
         }
 
-        User user = userRepository.findByUsername(principal.getName());
+        User user = userDAO.findByUsername(principal.getName());
         if (user == null ) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized access");
         }
 
-        LedgerCategory category=ledgerCategoryRepository.findById(id)
+        LedgerCategory category= ledgerCategoryDAO.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Category not found"));
 
         if (category.getParent() != null) {
@@ -145,7 +150,7 @@ public class LedgerCategoryController {
             return ResponseEntity.badRequest().body("Demote must have parentId");
         }
 
-        LedgerCategory parent = ledgerCategoryRepository.findById(parentId)
+        LedgerCategory parent = ledgerCategoryDAO.findById(parentId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Parent category not found"));
 
         if(parent.getParent() != null){
@@ -158,8 +163,8 @@ public class LedgerCategoryController {
         category.setParent(parent);
         parent.getChildren().add(category);
 
-        ledgerCategoryRepository.save(category);
-        ledgerCategoryRepository.save(parent);
+        ledgerCategoryDAO.save(category);
+        ledgerCategoryDAO.save(parent);
 
         return ResponseEntity.ok("Demoted successfully");
     }
@@ -172,11 +177,11 @@ public class LedgerCategoryController {
         if(principal == null){
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized access");
         }
-        User user = userRepository.findByUsername(principal.getName());
+        User user = userDAO.findByUsername(principal.getName());
         if (user == null ) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized access");
         }
-        LedgerCategory category=ledgerCategoryRepository.findById(id)
+        LedgerCategory category= ledgerCategoryDAO.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Category not found"));
 
         LedgerCategory parent=category.getParent();
@@ -186,8 +191,8 @@ public class LedgerCategoryController {
 
         parent.getChildren().remove(category);
         category.setParent(null);
-        ledgerCategoryRepository.save(category);
-        ledgerCategoryRepository.save(parent);
+        ledgerCategoryDAO.save(category);
+        ledgerCategoryDAO.save(parent);
         return ResponseEntity.ok("Promoted successfully");
     }
 
@@ -201,24 +206,24 @@ public class LedgerCategoryController {
         if(principal == null){
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized access");
         }
-        User user = userRepository.findByUsername(principal.getName());
+        User user = userDAO.findByUsername(principal.getName());
         if (user == null ) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized access");
         }
-        LedgerCategory category = ledgerCategoryRepository.findById(id)
+        LedgerCategory category = ledgerCategoryDAO.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Category not found"));
         if (!category.getChildren().isEmpty() && category.getParent() == null) {
             return ResponseEntity.badRequest().body("Cannot delete category with subcategories");
         }
 
         List<Budget> budgetsToDelete = new ArrayList<>(category.getBudgets());
-        budgetRepository.deleteAll(budgetsToDelete);
+        budgetDAO.deleteAll(budgetsToDelete);
 
         if (!deleteTransactions) {
             if(migrateToCategoryId == null) {
                 return ResponseEntity.badRequest().body("Must provide migrateToCategoryId");
             }
-            LedgerCategory migrateToCategory = ledgerCategoryRepository.findById(migrateToCategoryId)
+            LedgerCategory migrateToCategory = ledgerCategoryDAO.findById(migrateToCategoryId)
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "migrateToCategory not found"));
             if (migrateToCategory.getParent() != null) {
                 return ResponseEntity.badRequest().body("migrateToCategory must be a Category");
@@ -228,9 +233,9 @@ public class LedgerCategoryController {
                 category.getTransactions().remove(tx);
                 tx.setCategory(migrateToCategory);
                 migrateToCategory.getTransactions().add(tx);
-                transactionRepository.save(tx);
+                transactionDAO.save(tx);
             }
-            ledgerCategoryRepository.save(migrateToCategory);
+            ledgerCategoryDAO.save(migrateToCategory);
         }else{
             List<Transaction> transactionsToDelete = new ArrayList<>(category.getTransactions());
             for (Transaction tx : transactionsToDelete) {
@@ -254,22 +259,22 @@ public class LedgerCategoryController {
                     tx.setLedger(null);
                 }
 
-                transactionRepository.delete(tx);
+                transactionDAO.delete(tx);
             }
         }
         if(category.getParent() != null){
             LedgerCategory parent=category.getParent();
             parent.getChildren().remove(category);
             category.setParent(null);
-            ledgerCategoryRepository.save(parent);
+            ledgerCategoryDAO.save(parent);
         }
 
         Ledger ledger=category.getLedger();
         ledger.getCategories().remove(category);
         category.setLedger(null);
-        ledgerRepository.save(ledger);
+        ledgerDAO.save(ledger);
 
-        ledgerCategoryRepository.delete(category);
+        ledgerCategoryDAO.delete(category);
         return ResponseEntity.ok("Deleted successfully");
     }
 
@@ -282,19 +287,19 @@ public class LedgerCategoryController {
         if (principal == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized access");
         }
-        User user = userRepository.findByUsername(principal.getName());
+        User user = userDAO.findByUsername(principal.getName());
         if (user == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized access");
         }
-        LedgerCategory category = ledgerCategoryRepository.findById(id)
+        LedgerCategory category = ledgerCategoryDAO.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Category not found"));
 
         if(newName == null || newName.trim().isEmpty()){
             return ResponseEntity.badRequest().body("new name cannot be null");
         }
 
-        if(ledgerCategoryRepository.existsByLedgerAndName(category.getLedger(), newName)){
-            if(!ledgerCategoryRepository.findByLedgerAndName(category.getLedger(), newName).getId().equals(category.getId())){
+        if(ledgerCategoryDAO.existsByLedgerAndName(category.getLedger(), newName)){
+            if(!ledgerCategoryDAO.findByLedgerAndName(category.getLedger(), newName).getId().equals(category.getId())){
                 return ResponseEntity.status(HttpStatus.CONFLICT).body("new name exists already");
             }else{
                 return ResponseEntity.ok("Renamed successfully");
@@ -306,7 +311,7 @@ public class LedgerCategoryController {
         }
 
         category.setName(newName);
-        ledgerCategoryRepository.save(category);
+        ledgerCategoryDAO.save(category);
 
 
         return ResponseEntity.ok("Renamed successfully");
@@ -321,17 +326,17 @@ public class LedgerCategoryController {
         if(principal == null){
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized access");
         }
-        User user = userRepository.findByUsername(principal.getName());
+        User user = userDAO.findByUsername(principal.getName());
         if (user == null ) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized access");
         }
         if(id.equals(newParentId)){
             return ResponseEntity.badRequest().body("Category cannot be its own parent");
         }
-        LedgerCategory category = ledgerCategoryRepository.findById(id)
+        LedgerCategory category = ledgerCategoryDAO.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Category not found"));
 
-        LedgerCategory newParent = ledgerCategoryRepository.findById(newParentId)
+        LedgerCategory newParent = ledgerCategoryDAO.findById(newParentId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "New parent category not found"));
 
         if (newParent.getParent() != null) {
@@ -346,9 +351,9 @@ public class LedgerCategoryController {
         category.setParent(newParent);
         newParent.getChildren().add(category);
 
-        ledgerCategoryRepository.save(oldParent);
-        ledgerCategoryRepository.save(newParent);
-        ledgerCategoryRepository.save(category);
+        ledgerCategoryDAO.save(oldParent);
+        ledgerCategoryDAO.save(newParent);
+        ledgerCategoryDAO.save(category);
         return ResponseEntity.ok("Parent category changed successfully");
     }
 
@@ -360,11 +365,11 @@ public class LedgerCategoryController {
           if(principal == null){
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
           }
-          User user = userRepository.findByUsername(principal.getName());
+          User user = userDAO.findByUsername(principal.getName());
           if (user == null ) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
           }
-          LedgerCategory category = ledgerCategoryRepository.findById(id)
+          LedgerCategory category = ledgerCategoryDAO.findById(id)
                  .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Category not found"));
 
           if (!category.getLedger().getOwner().getId().equals(user.getId())) {
@@ -387,19 +392,19 @@ public class LedgerCategoryController {
               categoryIds.add(category.getId());
 
               //find all subcategories of this category
-              List<LedgerCategory> subCategories = ledgerCategoryRepository.findByParentId(id);
+              List<LedgerCategory> subCategories = ledgerCategoryDAO.findByParentId(id);
               //add its subCategoryIds and its id to the list of ids categoryIds
               for (LedgerCategory subCategory : subCategories) {
                   categoryIds.add(subCategory.getId());
               }
               //find all transactions of this category and its subcategories
-              transactions = transactionRepository.findByCategoryIdsAndUserId(
+              transactions = transactionDAO.findByCategoryIdsAndUserId(
                       categoryIds, startDate, endDate, user.getId()
               );
 
           } else { //if it's a subcategory
               //find all transactions of this subcategory
-              transactions = transactionRepository.findByCategoryIdAndUserId(
+              transactions = transactionDAO.findByCategoryIdAndUserId(
                         id, startDate, endDate, user.getId()
               );
           }

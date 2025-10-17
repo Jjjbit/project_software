@@ -1,7 +1,7 @@
 package com.ledger.project_software;
 
-import com.ledger.project_software.Repository.AccountRepository;
-import com.ledger.project_software.Repository.UserRepository;
+import com.ledger.project_software.orm.AccountDAO;
+import com.ledger.project_software.orm.UserDAO;
 import com.ledger.project_software.domain.*;
 import jakarta.transaction.Transactional;
 import org.junit.jupiter.api.Assertions;
@@ -29,10 +29,10 @@ public class UserTest { // Integration test between UserController and UserRepos
     private MockMvc mockMvc;
 
     @Autowired
-    private UserRepository userRepository;
+    private UserDAO userRepository;
 
     @Autowired
-    private AccountRepository accountRepository;
+    private AccountDAO accountRepository;
 
     @Test
     public void testRegisterAndVerifyInDatabase() throws Exception {

@@ -1,8 +1,7 @@
 package com.ledger.project_software.business;
 
-import com.ledger.project_software.Repository.*;
+import com.ledger.project_software.orm.*;
 import com.ledger.project_software.domain.*;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -16,7 +15,6 @@ import java.math.RoundingMode;
 import java.security.Principal;
 import java.time.LocalDate;
 import java.time.YearMonth;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -24,14 +22,20 @@ import java.util.Map;
 @RestController
 @RequestMapping("/accounts")
 public class AccountController {
-    @Autowired
-    private AccountRepository accountRepository;
-    @Autowired
-    private UserRepository userRepository;
-    @Autowired
-    private TransactionRepository transactionRepository;
-    @Autowired
-    private LedgerRepository ledgerRepository;
+    private final AccountDAO accountDAO;
+    private final UserDAO userDAO;
+    private final TransactionDAO transactionDAO;
+    private final LedgerDAO ledgerDAO;
+
+    public AccountController(AccountDAO accountDAO,
+                             UserDAO userDAO,
+                             TransactionDAO transactionDAO,
+                             LedgerDAO ledgerDAO) {
+        this.accountDAO = accountDAO;
+        this.userDAO = userDAO;
+        this.transactionDAO = transactionDAO;
+        this.ledgerDAO = ledgerDAO;
+    }
 
 
     @PostMapping("/create-basic-account")
@@ -49,7 +53,7 @@ public class AccountController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized access");
         }
 
-        User user = userRepository.findByUsername(principal.getName());
+        User user = userDAO.findByUsername(principal.getName());
         if (user == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized access");
         }
@@ -65,9 +69,9 @@ public class AccountController {
                 type,
                 category,
                 user);
-        accountRepository.save(account);
+        accountDAO.save(account);
         user.getAccounts().add(account);
-        userRepository.save(user);
+        userDAO.save(user);
         return ResponseEntity.ok("Basic account created successfully");
     }
 
@@ -89,7 +93,7 @@ public class AccountController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized access");
         }
 
-        User user = userRepository.findByUsername(principal.getName());
+        User user = userDAO.findByUsername(principal.getName());
         if (user == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized access");
         }
@@ -108,9 +112,9 @@ public class AccountController {
                 billDate,
                 dueDate,
                 type);
-        accountRepository.save(account);
+        accountDAO.save(account);
         user.getAccounts().add(account);
-        userRepository.save(user);
+        userDAO.save(user);
         return ResponseEntity.ok("Credit account created successfully");
     }
 
@@ -132,14 +136,14 @@ public class AccountController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized access");
         }
 
-        User user = userRepository.findByUsername(principal.getName());
+        User user = userDAO.findByUsername(principal.getName());
         if (user == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized access");
         }
 
         Account receivingAccount = null;
         if (receivingAccountId != null) {
-            receivingAccount = accountRepository.findById(receivingAccountId).orElse(null);
+            receivingAccount = accountDAO.findById(receivingAccountId).orElse(null);
         }
 
         LoanAccount account = new LoanAccount(
@@ -163,9 +167,9 @@ public class AccountController {
                 loanAmount,
                 null);
         account.getOutgoingTransactions().add(tx);
-        accountRepository.save(account);
+        accountDAO.save(account);
         user.getAccounts().add(account);
-        userRepository.save(user);
+        userDAO.save(user);
         return ResponseEntity.ok("Loan account created successfully");
     }
 
@@ -183,13 +187,13 @@ public class AccountController {
         if (principal == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized access");
         }
-        User user = userRepository.findByUsername(principal.getName());
+        User user = userDAO.findByUsername(principal.getName());
         if (user == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized access");
         }
         Account toAccount = null;
         if (toAccountId != null) {
-            toAccount = accountRepository.findById(toAccountId)
+            toAccount = accountDAO.findById(toAccountId)
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "toAccount not found")
                     );
             if (!toAccount.getOwner().getId().equals(user.getId())) {
@@ -227,18 +231,18 @@ public class AccountController {
                 toAccount,
                 amount,
                 null);
-        transactionRepository.save(initialTransaction);
+        transactionDAO.save(initialTransaction);
 
         borrowingAccount.getOutgoingTransactions().add(initialTransaction);
 
         if (toAccount != null) {
             toAccount.credit(amount);
             toAccount.getIncomingTransactions().add(initialTransaction);
-            accountRepository.save(toAccount);
+            accountDAO.save(toAccount);
         }
-        accountRepository.save(borrowingAccount);
+        accountDAO.save(borrowingAccount);
         user.getAccounts().add(borrowingAccount);
-        userRepository.save(user);
+        userDAO.save(user);
         return ResponseEntity.ok("Borrowing account created successfully");
     }
 
@@ -256,13 +260,13 @@ public class AccountController {
         if (principal == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized access");
         }
-        User user = userRepository.findByUsername(principal.getName());
+        User user = userDAO.findByUsername(principal.getName());
         if (user == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized access");
         }
         Account fromAccount = null;
         if (fromAccountId != null) {
-            fromAccount = accountRepository.findById(fromAccountId)
+            fromAccount = accountDAO.findById(fromAccountId)
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "fromAccount not found"));
 
             if (!fromAccount.getOwner().getId().equals(user.getId())) {
@@ -302,19 +306,19 @@ public class AccountController {
                 balance,
                 null //ledger
         );
-        transactionRepository.save(initialTransaction);
+        transactionDAO.save(initialTransaction);
 
         lendingAccount.getIncomingTransactions().add(initialTransaction);
-        accountRepository.save(lendingAccount);
+        accountDAO.save(lendingAccount);
 
         if (fromAccount != null) {
             fromAccount.debit(balance);
             fromAccount.getOutgoingTransactions().add(initialTransaction);
-            accountRepository.save(fromAccount);
+            accountDAO.save(fromAccount);
         }
 
         user.getAccounts().add(lendingAccount);
-        userRepository.save(user);
+        userDAO.save(user);
         return ResponseEntity.ok("Lending account created successfully");
     }
 
@@ -329,12 +333,12 @@ public class AccountController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized access");
         }
 
-        User user = userRepository.findByUsername(principal.getName());
+        User user = userDAO.findByUsername(principal.getName());
         if (user == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized access");
         }
 
-        Account account = accountRepository.findById(id).orElse(null);
+        Account account = accountDAO.findById(id).orElse(null);
         if (account == null) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Account not found");
         }
@@ -345,7 +349,7 @@ public class AccountController {
 
         if (deleteTransactions) {// Delete all transactions associated with the account
             List<Transaction> transactionsToDelete =
-                    transactionRepository.findAll().stream()
+                    transactionDAO.findAll().stream()
                             .filter(tx -> (tx.getFromAccount() != null && tx.getFromAccount().equals(account)) ||
                                     (tx.getToAccount() != null && tx.getToAccount().equals(account)))
                             .toList();
@@ -372,18 +376,18 @@ public class AccountController {
                     transaction.setCategory(null);
                 }
 
-                transactionRepository.delete(transaction);
+                transactionDAO.delete(transaction);
 
             }
 
-            accountRepository.delete(account);
+            accountDAO.delete(account);
             user.getAccounts().remove(account);
-            userRepository.save(user);
+            userDAO.save(user);
             return ResponseEntity.ok("Account and associated transactions deleted successfully");
         } else {
             // If not deleting transactions, just disassociate them
             List<Transaction> transactionsToDisassociate =
-                    transactionRepository.findAll().stream()
+                    transactionDAO.findAll().stream()
                             .filter(tx -> (tx.getFromAccount() != null && tx.getFromAccount().equals(account)) ||
                                     (tx.getToAccount() != null && tx.getToAccount().equals(account)))
                             .toList();
@@ -395,12 +399,12 @@ public class AccountController {
                 if (transaction.getToAccount() != null) {
                     transaction.setToAccount(null);
                 }
-                transactionRepository.save(transaction);
+                transactionDAO.save(transaction);
             }
 
-            accountRepository.delete(account);
+            accountDAO.delete(account);
             user.getAccounts().remove(account);
-            userRepository.save(user);
+            userDAO.save(user);
             return ResponseEntity.ok("Account disassociated from transactions and deleted successfully");
         }
     }
@@ -413,12 +417,12 @@ public class AccountController {
         if (principal == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized access");
         }
-        User user = userRepository.findByUsername(principal.getName());
+        User user = userDAO.findByUsername(principal.getName());
         if (user == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized access");
         }
 
-        Account account = accountRepository.findById(id).orElse(null);
+        Account account = accountDAO.findById(id).orElse(null);
         if (account == null) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Account not found");
         }
@@ -428,7 +432,7 @@ public class AccountController {
         }
 
         account.hide();
-        accountRepository.save(account);
+        accountDAO.save(account);
         return ResponseEntity.ok("Account hidden successfully");
     }
 
@@ -446,12 +450,12 @@ public class AccountController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized access");
         }
 
-        User user = userRepository.findByUsername(principal.getName());
+        User user = userDAO.findByUsername(principal.getName());
         if (user == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized access");
         }
 
-        Account account = accountRepository.findById(id).orElse(null);
+        Account account = accountDAO.findById(id).orElse(null);
         if (account == null) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Account not found");
         }
@@ -480,8 +484,8 @@ public class AccountController {
             account.setSelectable(selectable);
         }
 
-        accountRepository.save(account);
-        userRepository.save(account.getOwner());
+        accountDAO.save(account);
+        userDAO.save(account.getOwner());
         return ResponseEntity.ok("Account edited successfully");
     }
 
@@ -503,11 +507,11 @@ public class AccountController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized access");
         }
 
-        User user = userRepository.findByUsername(principal.getName());
+        User user = userDAO.findByUsername(principal.getName());
         if (user == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized access");
         }
-        Account account = accountRepository.findById(id).orElse(null);
+        Account account = accountDAO.findById(id).orElse(null);
         if (account == null) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Account not found");
         }
@@ -544,8 +548,8 @@ public class AccountController {
         if (dueDate != null) {
             creditAccount.setDueDay(dueDate);
         }
-        accountRepository.save(creditAccount);
-        userRepository.save(creditAccount.getOwner());
+        accountDAO.save(creditAccount);
+        userDAO.save(creditAccount.getOwner());
         return ResponseEntity.ok("Credit account edited successfully");
     }
 
@@ -567,12 +571,12 @@ public class AccountController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized access");
         }
 
-        User user = userRepository.findByUsername(principal.getName());
+        User user = userDAO.findByUsername(principal.getName());
         if (user == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized access");
         }
 
-        Account account = accountRepository.findById(id).orElse(null);
+        Account account = accountDAO.findById(id).orElse(null);
         if (account == null) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Account not found");
         }
@@ -610,8 +614,8 @@ public class AccountController {
             loanAccount.setRepaymentType(repaymentType);
         }
         ((LoanAccount) account).updateRemainingAmount();
-        accountRepository.save(loanAccount);
-        userRepository.save(loanAccount.getOwner());
+        accountDAO.save(loanAccount);
+        userDAO.save(loanAccount.getOwner());
         return ResponseEntity.ok("Loan account edited successfully");
     }
 
@@ -629,12 +633,12 @@ public class AccountController {
         if (principal == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized access");
         }
-        User user = userRepository.findByUsername(principal.getName());
+        User user = userDAO.findByUsername(principal.getName());
         if (user == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized access");
         }
 
-        Account account = accountRepository.findById(id).orElse(null);
+        Account account = accountDAO.findById(id).orElse(null);
         if (account == null) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Borrowing account not found");
         }
@@ -666,7 +670,7 @@ public class AccountController {
             ((BorrowingAccount) account).setBorrowingDate(date);
         }
         ((BorrowingAccount) account).checkAndUpdateStatus(); // aggiorna lo stato del borrowing
-        accountRepository.save(account);
+        accountDAO.save(account);
         return ResponseEntity.ok("Borrowing account updated successfully");
     }
 
@@ -684,11 +688,11 @@ public class AccountController {
         if (principal == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized access");
         }
-        User user = userRepository.findByUsername(principal.getName());
+        User user = userDAO.findByUsername(principal.getName());
         if (user == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized access");
         }
-        Account account = accountRepository.findById(id).orElse(null);
+        Account account = accountDAO.findById(id).orElse(null);
         if (account == null) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("LendingAccount not found");
         }
@@ -720,7 +724,7 @@ public class AccountController {
             ((LendingAccount) account).setLendingDate(date);
         }
         ((LendingAccount) account).checkAndUpdateStatus();
-        accountRepository.save(account);
+        accountDAO.save(account);
         return ResponseEntity.ok("LendingAccount updated successfully");
     }
 
@@ -735,11 +739,11 @@ public class AccountController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized access");
         }
 
-        User user = userRepository.findByUsername(principal.getName());
+        User user = userDAO.findByUsername(principal.getName());
         if (user == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized access");
         }
-        Account account = accountRepository.findById(id).orElse(null);
+        Account account = accountDAO.findById(id).orElse(null);
         if (account == null) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Account not found");
         }
@@ -750,7 +754,7 @@ public class AccountController {
         if (account instanceof LoanAccount) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Cannot credit a loan account");
         }
-        if (account.getSelectable() == false) {
+        if (!account.getSelectable()) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Cannot credit a non-selectable account");
         }
         if (amount.compareTo(BigDecimal.ZERO) <= 0) {
@@ -759,7 +763,7 @@ public class AccountController {
 
 
         account.credit(amount);
-        accountRepository.save(account);
+        accountDAO.save(account);
         return ResponseEntity.ok("credit account");
     }
 
@@ -772,11 +776,11 @@ public class AccountController {
         if (principal == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized access");
         }
-        User user = userRepository.findByUsername(principal.getName());
+        User user = userDAO.findByUsername(principal.getName());
         if (user == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized access");
         }
-        Account account = accountRepository.findById(id).orElse(null);
+        Account account = accountDAO.findById(id).orElse(null);
         if (account == null) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Account not found");
         }
@@ -787,7 +791,7 @@ public class AccountController {
         if (account instanceof LoanAccount) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Cannot debit a loan account");
         }
-        if (account.getSelectable() == false) {
+        if (!account.getSelectable()) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Cannot debit a non-selectable account");
         }
         if (amount.compareTo(BigDecimal.ZERO) <= 0) {
@@ -800,7 +804,7 @@ public class AccountController {
                 } else {
                     ((CreditAccount) account).setCurrentDebt(((CreditAccount) account).getCurrentDebt().add(amount.subtract(account.getBalance())).setScale(2, RoundingMode.HALF_UP));
                     account.setBalance(BigDecimal.ZERO);
-                    accountRepository.save(account);
+                    accountDAO.save(account);
                     return ResponseEntity.ok("debit account");
                 }
             }
@@ -811,7 +815,7 @@ public class AccountController {
         }
 
         account.debit(amount);
-        accountRepository.save(account);
+        accountDAO.save(account);
         return ResponseEntity.ok("debit account");
     }
 
@@ -828,12 +832,12 @@ public class AccountController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized access");
         }
 
-        User user = userRepository.findByUsername(principal.getName());
+        User user = userDAO.findByUsername(principal.getName());
         if (user == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized access");
         }
 
-        Account creditAccount = accountRepository.findById(id).orElse(null);
+        Account creditAccount = accountDAO.findById(id).orElse(null);
         if (creditAccount == null) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Credit account not found");
         }
@@ -841,7 +845,7 @@ public class AccountController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Account is not a credit account");
         }
 
-        Account fromAccount = (fromAccountId != null) ? accountRepository.findById(fromAccountId)
+        Account fromAccount = (fromAccountId != null) ? accountDAO.findById(fromAccountId)
                 .orElse(null) : null;
 
         if (fromAccount != null) {
@@ -859,7 +863,7 @@ public class AccountController {
 
         Ledger ledger = null;
         if (ledgerId != null) {
-            ledger = ledgerRepository.findById(ledgerId).orElse(null);
+            ledger = ledgerDAO.findById(ledgerId).orElse(null);
             if (ledger == null) {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Ledger not found");
             }
@@ -876,14 +880,14 @@ public class AccountController {
                 amount,
                 ledger
         );
-        transactionRepository.save(tx);
+        transactionDAO.save(tx);
         ((CreditAccount) creditAccount).repayDebt(tx); // aggiorna currentDebt e aggiunge la transazione
-        accountRepository.save(creditAccount);
+        accountDAO.save(creditAccount);
 
         if (fromAccount != null) {
             fromAccount.debit(amount);
             fromAccount.getOutgoingTransactions().add(tx);
-            accountRepository.save(fromAccount);
+            accountDAO.save(fromAccount);
         }
         if (ledger != null) {
             ledger.getTransactions().add(tx);
@@ -904,7 +908,7 @@ public class AccountController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized access");
         }
 
-        Account loanAccount = accountRepository.findById(id).orElse(null);
+        Account loanAccount = accountDAO.findById(id).orElse(null);
         if (loanAccount == null) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Loan account not found");
         }
@@ -912,9 +916,9 @@ public class AccountController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Account is not a loan account");
         }
 
-        Account fromAccount = (fromAccountId != null) ? accountRepository.findById(fromAccountId).orElse(null) : null;
+        Account fromAccount = (fromAccountId != null) ? accountDAO.findById(fromAccountId).orElse(null) : null;
 
-        User owner = userRepository.findByUsername(principal.getName());
+        User owner = userDAO.findByUsername(principal.getName());
         if (owner == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized access");
         }
@@ -925,7 +929,7 @@ public class AccountController {
 
         Ledger ledger = null;
         if (ledgerId != null) {
-            ledger = ledgerRepository.findById(ledgerId).orElse(null);
+            ledger = ledgerDAO.findById(ledgerId).orElse(null);
             if (ledger == null) {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Ledger not found");
             }
@@ -959,14 +963,14 @@ public class AccountController {
                 amount,
                 ledger
         );
-        transactionRepository.save(repaymentTransaction);
+        transactionDAO.save(repaymentTransaction);
 
         if (amount != null) {
             loanAcc.repayLoan(repaymentTransaction, amount); //aggiorna remainingAmount e repaidPeriods
         } else {
             loanAcc.repayLoan(repaymentTransaction); //aggiorna remainingAmount e repaidPeriods
         }
-        accountRepository.save(loanAcc);
+        accountDAO.save(loanAcc);
 
         if (fromAccount != null) {
             if (!fromAccount.getOwner().getId().equals(owner.getId())) {
@@ -974,7 +978,7 @@ public class AccountController {
             }
             fromAccount.debit(amount);
             fromAccount.getOutgoingTransactions().add(repaymentTransaction);
-            accountRepository.save(fromAccount);
+            accountDAO.save(fromAccount);
         }
 
         if (ledger != null) {
@@ -996,11 +1000,11 @@ public class AccountController {
         if (principal == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized access");
         }
-        User user = userRepository.findByUsername(principal.getName());
+        User user = userDAO.findByUsername(principal.getName());
         if (user == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized access");
         }
-        Account borrowingAccount = accountRepository.findById(id).orElse(null);
+        Account borrowingAccount = accountDAO.findById(id).orElse(null);
         if (borrowingAccount == null) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Borrowing account not found");
         }
@@ -1018,7 +1022,7 @@ public class AccountController {
         }
         Account fromAccount = null;
         if (fromAccountId != null) {
-            fromAccount = accountRepository.findById(fromAccountId)
+            fromAccount = accountDAO.findById(fromAccountId)
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "fromAccount not found"));
 
             if (!fromAccount.getOwner().getId().equals(user.getId())) {
@@ -1028,7 +1032,7 @@ public class AccountController {
 
         Ledger ledger = null;
         if (ledgerId != null) {
-            ledger = ledgerRepository.findById(ledgerId)
+            ledger = ledgerDAO.findById(ledgerId)
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Ledger not found"));
             if (!ledger.getOwner().getId().equals(user.getId())) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Ledger does not belong to the authenticated user");
@@ -1050,14 +1054,14 @@ public class AccountController {
                 amount,
                 ledger
         );
-        transactionRepository.save(tx);
+        transactionDAO.save(tx);
         ((BorrowingAccount) borrowingAccount).repay(tx, amount); //aggiorna il balance del borrowingAccount e aggiunge la transazione
-        accountRepository.save(borrowingAccount);
+        accountDAO.save(borrowingAccount);
 
         if (fromAccount != null) {
             fromAccount.debit(amount); //decrementa il balance dell'account
             fromAccount.getOutgoingTransactions().add(tx);
-            accountRepository.save(fromAccount);
+            accountDAO.save(fromAccount);
         }
         if (ledger != null) {
             ledger.getTransactions().add(tx);
@@ -1077,11 +1081,11 @@ public class AccountController {
         if (principal == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized access");
         }
-        User user = userRepository.findByUsername(principal.getName());
+        User user = userDAO.findByUsername(principal.getName());
         if (user == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized access");
         }
-        Account lendingAccount = accountRepository.findById(id).orElse(null);
+        Account lendingAccount = accountDAO.findById(id).orElse(null);
         if (lendingAccount == null) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("LendingAccount not found");
         }
@@ -1096,7 +1100,7 @@ public class AccountController {
         }
         Ledger ledger = null;
         if (ledgerId != null) {
-            ledger = ledgerRepository.findById(ledgerId)
+            ledger = ledgerDAO.findById(ledgerId)
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Ledger not found"));
             if (!ledger.getOwner().getId().equals(user.getId())) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Ledger does not belong to the authenticated user");
@@ -1105,7 +1109,7 @@ public class AccountController {
 
         Account toAccount = null;
         if (toAccountId != null) {
-            toAccount = accountRepository.findById(toAccountId)
+            toAccount = accountDAO.findById(toAccountId)
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "toAccount not found"));
 
             if (!toAccount.getOwner().getId().equals(user.getId())) {
@@ -1127,14 +1131,14 @@ public class AccountController {
                 amount,
                 ledger
         );
-        transactionRepository.save(tx);
+        transactionDAO.save(tx);
         ((LendingAccount) lendingAccount).receiveRepayment(tx, amount); //aggiorna il balance del lendingAccount e aggiunge la transazione
-        accountRepository.save(lendingAccount);
+        accountDAO.save(lendingAccount);
 
         if (toAccount != null) {
             toAccount.credit(amount); //incrementa il balance dell'account
             toAccount.getIncomingTransactions().add(tx);
-            accountRepository.save(toAccount);
+            accountDAO.save(toAccount);
         }
         if (ledger != null) {
             ledger.getTransactions().add(tx);
@@ -1148,12 +1152,12 @@ public class AccountController {
         if (principal == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
-        User user = userRepository.findByUsername(principal.getName());
+        User user = userDAO.findByUsername(principal.getName());
         if (user == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
 
-        List<Account> accounts = accountRepository.findByOwnerId(user.getId());
+        List<Account> accounts = accountDAO.findByOwnerId(user.getId());
 
         return ResponseEntity.ok(accounts);
     }
@@ -1168,10 +1172,10 @@ public class AccountController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
 
-        Account account = accountRepository.findById(id)
+        Account account = accountDAO.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Account not found"));
 
-        User user = userRepository.findByUsername(principal.getName());
+        User user = userDAO.findByUsername(principal.getName());
         if (user == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
@@ -1179,7 +1183,7 @@ public class AccountController {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
 
-        List<Transaction> transactions = transactionRepository.findByAccountIdAndOwnerId(
+        List<Transaction> transactions = transactionDAO.findByAccountIdAndOwnerId(
                 id,
                 user.getId(),
                 month.atDay(1),
@@ -1197,10 +1201,10 @@ public class AccountController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
 
-        Account account = accountRepository.findById(id)
+        Account account = accountDAO.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Account not found"));
 
-        User user = userRepository.findByUsername(principal.getName());
+        User user = userDAO.findByUsername(principal.getName());
         if (user == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }

@@ -1,8 +1,7 @@
 package com.ledger.project_software.business;
 
-import com.ledger.project_software.Repository.*;
+import com.ledger.project_software.orm.*;
 import com.ledger.project_software.domain.*;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -19,16 +18,23 @@ import java.time.LocalDate;
 @RestController
 @RequestMapping("/transactions")
 public class TransactionController {
-    @Autowired
-    private TransactionRepository transactionRepository;
-    @Autowired
-    private UserRepository userRepository;
-    @Autowired
-    private LedgerRepository ledgerRepository;
-    @Autowired
-    private AccountRepository accountRepository;
-    @Autowired
-    private LedgerCategoryRepository ledgerCategoryRepository;
+    private final TransactionDAO transactionDAO;
+    private final UserDAO userDAO;
+    private final LedgerDAO ledgerDAO;
+    private final AccountDAO accountDAO;
+    private final LedgerCategoryDAO ledgerCategoryDAO;
+
+    public TransactionController(TransactionDAO transactionDAO,
+                                 UserDAO userDAO,
+                                 LedgerDAO ledgerDAO,
+                                 AccountDAO accountDAO,
+                                 LedgerCategoryDAO ledgerCategoryDAO) {
+        this.transactionDAO = transactionDAO;
+        this.userDAO = userDAO;
+        this.ledgerDAO = ledgerDAO;
+        this.accountDAO = accountDAO;
+        this.ledgerCategoryDAO = ledgerCategoryDAO;
+    }
 
     @PostMapping("/create")
     @Transactional
@@ -46,12 +52,12 @@ public class TransactionController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized access");
         }
 
-        User user=userRepository.findByUsername(principal.getName());
+        User user= userDAO.findByUsername(principal.getName());
         if (user == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized access");
         }
 
-        Ledger ledger=ledgerRepository.findById(ledgerId)
+        Ledger ledger= ledgerDAO.findById(ledgerId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Ledger not found"));
         if (!ledger.getOwner().getId().equals(user.getId())) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Ledger does not belong to the user");
@@ -59,7 +65,7 @@ public class TransactionController {
 
         Account fromAccount = null;
         if (fromAccountId != null) {
-            fromAccount=accountRepository.findById(fromAccountId)
+            fromAccount= accountDAO.findById(fromAccountId)
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "From Account not found"));
             if (!fromAccount.getOwner().getId().equals(user.getId())) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).body("From Account does not belong to the user");
@@ -68,7 +74,7 @@ public class TransactionController {
 
         Account toAccount = null;
         if (toAccountId != null) {
-            toAccount=accountRepository.findById(toAccountId)
+            toAccount= accountDAO.findById(toAccountId)
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "To Account not found"));
             if (!toAccount.getOwner().getId().equals(user.getId())) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).body("To Account does not belong to the user");
@@ -77,7 +83,7 @@ public class TransactionController {
 
         LedgerCategory categoryComponent = null;
         if (categoryId != null) {
-            categoryComponent= ledgerCategoryRepository.findById(categoryId)
+            categoryComponent= ledgerCategoryDAO.findById(categoryId)
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Category not found"));
             if (!categoryComponent.getLedger().getId().equals(ledger.getId())) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Category does not belong to the specified ledger");
@@ -133,14 +139,14 @@ public class TransactionController {
                     ledger,
                     categoryComponent
             );
-            transactionRepository.save(expenseTransaction);
+            transactionDAO.save(expenseTransaction);
             fromAccount.debit(amount);
             fromAccount.getOutgoingTransactions().add(expenseTransaction);
             ledger.getTransactions().add(expenseTransaction);
             categoryComponent.getTransactions().add(expenseTransaction);
-            accountRepository.save(fromAccount);
-            ledgerCategoryRepository.save(categoryComponent);
-            ledgerRepository.save(ledger);
+            accountDAO.save(fromAccount);
+            ledgerCategoryDAO.save(categoryComponent);
+            ledgerDAO.save(ledger);
         } else if(type == TransactionType.INCOME){
             if(toAccount == null){
                 return ResponseEntity.badRequest().body("Income transaction must have toAccount");
@@ -159,14 +165,14 @@ public class TransactionController {
                     ledger,
                     categoryComponent
             );
-            transactionRepository.save(incomeTransaction);
+            transactionDAO.save(incomeTransaction);
             toAccount.credit(amount);
             toAccount.getIncomingTransactions().add(incomeTransaction);
             ledger.getTransactions().add(incomeTransaction);
             categoryComponent.getTransactions().add(incomeTransaction);
-            accountRepository.save(toAccount);
-            ledgerCategoryRepository.save(categoryComponent);
-            ledgerRepository.save(ledger);
+            accountDAO.save(toAccount);
+            ledgerCategoryDAO.save(categoryComponent);
+            ledgerDAO.save(ledger);
         } else if(type == TransactionType.TRANSFER){
             if(fromAccount != null && toAccount != null && fromAccount.getId().equals(toAccount.getId())){
                 return ResponseEntity.badRequest().body("fromAccount and toAccount cannot be the same");
@@ -179,19 +185,19 @@ public class TransactionController {
                     amount,
                     ledger
             );
-            transactionRepository.save(transferTransaction);
+            transactionDAO.save(transferTransaction);
             if(fromAccount != null){
                 fromAccount.debit(amount);
                 fromAccount.getOutgoingTransactions().add(transferTransaction);
-                accountRepository.save(fromAccount);
+                accountDAO.save(fromAccount);
             }
             if(toAccount != null){
                 toAccount.credit(amount);
                 toAccount.getIncomingTransactions().add(transferTransaction);
-                accountRepository.save(toAccount);
+                accountDAO.save(toAccount);
             }
             ledger.getTransactions().add(transferTransaction);
-            ledgerRepository.save(ledger);
+            ledgerDAO.save(ledger);
 
         } else {
             return ResponseEntity.badRequest().body("Invalid transaction type");
@@ -208,11 +214,11 @@ public class TransactionController {
         if(principal == null){
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized access");
         }
-        User owner=userRepository.findByUsername(principal.getName());
+        User owner= userDAO.findByUsername(principal.getName());
         if (owner == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized access");
         }
-        Transaction transaction = transactionRepository.findById(id).orElse(null);
+        Transaction transaction = transactionDAO.findById(id).orElse(null);
         if(transaction == null){
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Transaction not found");
         }
@@ -225,27 +231,27 @@ public class TransactionController {
         if(ledger != null){
             ledger.getTransactions().remove(transaction);
             transaction.setLedger(null);
-            ledgerRepository.save(ledger);
+            ledgerDAO.save(ledger);
         }
         if(fromAccount != null){
             fromAccount.getOutgoingTransactions().remove(transaction);
             fromAccount.credit(transaction.getAmount());
             transaction.setFromAccount(null);
-            accountRepository.save(fromAccount);
+            accountDAO.save(fromAccount);
         }
         if(toAccount != null){
             toAccount.getIncomingTransactions().remove(transaction);
             toAccount.debit(transaction.getAmount());
             transaction.setToAccount(null);
-            accountRepository.save(toAccount);
+            accountDAO.save(toAccount);
         }
         if(categoryComponent != null){
             categoryComponent.getTransactions().remove(transaction);
             transaction.setCategory(null);
-            ledgerCategoryRepository.save(categoryComponent);
+            ledgerCategoryDAO.save(categoryComponent);
         }
 
-        transactionRepository.delete(transaction);
+        transactionDAO.delete(transaction);
         return ResponseEntity.ok("Transaction deleted successfully");
     }
 
@@ -265,18 +271,18 @@ public class TransactionController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized access");
         }
 
-        User owner=userRepository.findByUsername(principal.getName());
+        User owner= userDAO.findByUsername(principal.getName());
         if (owner == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized access");
         }
-        Transaction transaction = transactionRepository.findById(id).orElse(null);
+        Transaction transaction = transactionDAO.findById(id).orElse(null);
         if(transaction == null){
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Transaction not found");
         }
 
         Ledger oldLedger = transaction.getLedger();
         if(ledgerId != null){
-            Ledger ledger=ledgerRepository.findById(ledgerId)
+            Ledger ledger= ledgerDAO.findById(ledgerId)
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Ledger not found"));
 
             if (!ledger.getOwner().getId().equals(owner.getId())) {
@@ -287,18 +293,18 @@ public class TransactionController {
                 oldLedger.getTransactions().remove(transaction);
                 ledger.getTransactions().add(transaction);
                 transaction.setLedger(ledger);
-                ledgerRepository.save(oldLedger);
-                ledgerRepository.save(ledger);
+                ledgerDAO.save(oldLedger);
+                ledgerDAO.save(ledger);
             } else if (oldLedger == null) {
                 ledger.getTransactions().add(transaction);
                 transaction.setLedger(ledger);
-                ledgerRepository.save(ledger);
+                ledgerDAO.save(ledger);
             }
         }
 
         LedgerCategory oldCategory = transaction.getCategory();
         if (categoryId != null) {
-            LedgerCategory categoryComponent= ledgerCategoryRepository.findById(categoryId)
+            LedgerCategory categoryComponent= ledgerCategoryDAO.findById(categoryId)
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Category not found"));
             if (oldLedger != null && !categoryComponent.getLedger().getId().equals(oldLedger.getId())) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Category does not belong to the specified ledger");
@@ -313,12 +319,12 @@ public class TransactionController {
                 oldCategory.getTransactions().remove(transaction);
                 categoryComponent.getTransactions().add(transaction);
                 transaction.setCategory(categoryComponent);
-                ledgerCategoryRepository.save(oldCategory);
-                ledgerCategoryRepository.save(categoryComponent);
+                ledgerCategoryDAO.save(oldCategory);
+                ledgerCategoryDAO.save(categoryComponent);
             } else if (oldCategory == null) {
                 categoryComponent.getTransactions().add(transaction);
                 transaction.setCategory(categoryComponent);
-                ledgerCategoryRepository.save(categoryComponent);
+                ledgerCategoryDAO.save(categoryComponent);
             }
         }
 
@@ -359,10 +365,10 @@ public class TransactionController {
                         return ResponseEntity.badRequest().body("Insufficient funds in fromAccount");
                     }
                     prevFromAccount.debit(amount);
-                    accountRepository.save(prevFromAccount);
+                    accountDAO.save(prevFromAccount);
                 }
             }else{ //fromAccount changed
-                Account fromAccount=accountRepository.findById(fromAccountId)
+                Account fromAccount= accountDAO.findById(fromAccountId)
                         .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "From Account not found"));
                 if (!fromAccount.getOwner().getId().equals(owner.getId())) {
                     return ResponseEntity.status(HttpStatus.FORBIDDEN).body("From Account does not belong to the user");
@@ -377,7 +383,7 @@ public class TransactionController {
 
                 prevFromAccount.credit(transaction.getAmount());
                 prevFromAccount.getOutgoingTransactions().remove(transaction);
-                accountRepository.save(prevFromAccount);
+                accountDAO.save(prevFromAccount);
 
                 if(fromAccount.getBalance().compareTo(amount) < 0){
                     return ResponseEntity.badRequest().body("Insufficient funds in fromAccount");
@@ -385,17 +391,17 @@ public class TransactionController {
                 fromAccount.debit(amount);
                 fromAccount.getOutgoingTransactions().add(transaction);
                 transaction.setFromAccount(fromAccount);
-                accountRepository.save(fromAccount);
+                accountDAO.save(fromAccount);
             }
 
             if(toAccountId == null || toAccountId.equals(prevToAccount.getId())){ //toAccount not changed
                 if(prevToAccount !=null) {
                     prevToAccount.debit(transaction.getAmount());
                     prevToAccount.credit(amount);
-                    accountRepository.save(prevToAccount);
+                    accountDAO.save(prevToAccount);
                 }
             }else{ //toAccount changed
-                Account toAccount=accountRepository.findById(toAccountId)
+                Account toAccount= accountDAO.findById(toAccountId)
                         .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "To Account not found"));
                 if (!toAccount.getOwner().getId().equals(owner.getId())) {
                     return ResponseEntity.status(HttpStatus.FORBIDDEN).body("To Account does not belong to the user");
@@ -407,12 +413,12 @@ public class TransactionController {
 
                 prevToAccount.debit(transaction.getAmount());
                 prevToAccount.getIncomingTransactions().remove(transaction);
-                accountRepository.save(prevToAccount);
+                accountDAO.save(prevToAccount);
 
                 toAccount.credit(amount);
                 toAccount.getIncomingTransactions().add(transaction);
                 transaction.setToAccount(toAccount);
-                accountRepository.save(toAccount);
+                accountDAO.save(toAccount);
             }
             transaction.setAmount(amount);
         }else{ //amount not changed
@@ -424,17 +430,17 @@ public class TransactionController {
                 if(prevFromAccount != null){
                     prevFromAccount.credit(transaction.getAmount());
                     prevFromAccount.getOutgoingTransactions().remove(transaction);
-                    accountRepository.save(prevFromAccount);
+                    accountDAO.save(prevFromAccount);
                 }
                 if(prevToAccount != null){
                     prevToAccount.debit(transaction.getAmount());
                     prevToAccount.getIncomingTransactions().remove(transaction);
-                    accountRepository.save(prevToAccount);
+                    accountDAO.save(prevToAccount);
                 }
 
                 //apply new transaction
                 if(fromAccountId != null){
-                    Account fromAccount=accountRepository.findById(fromAccountId)
+                    Account fromAccount= accountDAO.findById(fromAccountId)
                             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "From Account not found"));
                     if (!fromAccount.getOwner().getId().equals(owner.getId())) {
                         return ResponseEntity.status(HttpStatus.FORBIDDEN).body("From Account does not belong to the user");
@@ -448,12 +454,12 @@ public class TransactionController {
                     fromAccount.debit(amount);
                     fromAccount.getOutgoingTransactions().add(transaction);
                     transaction.setFromAccount(fromAccount);
-                    accountRepository.save(fromAccount);
+                    accountDAO.save(fromAccount);
                 } else {
                     transaction.setFromAccount(null);
                 }
                 if(toAccountId != null){
-                    Account toAccount=accountRepository.findById(toAccountId)
+                    Account toAccount= accountDAO.findById(toAccountId)
                             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "To Account not found"));
                     if (!toAccount.getOwner().getId().equals(owner.getId())) {
                         return ResponseEntity.status(HttpStatus.FORBIDDEN).body("To Account does not belong to the user");
@@ -467,7 +473,7 @@ public class TransactionController {
                     toAccount.credit(amount);
                     toAccount.getIncomingTransactions().add(transaction);
                     transaction.setToAccount(toAccount);
-                    accountRepository.save(toAccount);
+                    accountDAO.save(toAccount);
                 } else {
                     transaction.setToAccount(null);
                 }
@@ -477,7 +483,7 @@ public class TransactionController {
         transaction.setDate(date != null ? date : transaction.getDate());
         transaction.setNote(note != null ? note : transaction.getNote());
 
-        transactionRepository.save(transaction);
+        transactionDAO.save(transaction);
 
         return ResponseEntity.ok("Edited successfully");
 

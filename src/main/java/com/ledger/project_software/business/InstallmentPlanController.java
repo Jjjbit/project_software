@@ -1,8 +1,7 @@
 package com.ledger.project_software.business;
 
-import com.ledger.project_software.Repository.*;
+import com.ledger.project_software.orm.*;
 import com.ledger.project_software.domain.*;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -18,16 +17,24 @@ import java.time.LocalDate;
 @RestController
 @RequestMapping("/installment-plans")
 public class InstallmentPlanController {
-    @Autowired
-    private InstallmentPlanRepository installmentPlanRepository;
-    @Autowired
-    private AccountRepository accountRepository;
-    @Autowired
-    private UserRepository userRepository;
-    @Autowired
-    private LedgerRepository ledgerRepository;
-    @Autowired
-    private TransactionRepository transactionRepository;
+    private final InstallmentPlanDAO installmentPlanDAO;
+    private final AccountDAO accountDAO;
+    private final UserDAO userDAO;
+    private final LedgerDAO ledgerDAO;
+    public final TransactionDAO transactionDAO;
+
+    public InstallmentPlanController(InstallmentPlanDAO installmentPlanDAO,
+                                     AccountDAO accountDAO,
+                                     UserDAO userDAO,
+                                     LedgerDAO ledgerDAO,
+                                     TransactionDAO transactionDAO) {
+        this.installmentPlanDAO = installmentPlanDAO;
+        this.accountDAO = accountDAO;
+        this.userDAO = userDAO;
+        this.ledgerDAO = ledgerDAO;
+        this.transactionDAO = transactionDAO;
+    }
+
 
     @PostMapping("/create")
     @Transactional
@@ -43,7 +50,7 @@ public class InstallmentPlanController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized access");
         }
 
-        User user=userRepository.findByUsername(principal.getName());
+        User user= userDAO.findByUsername(principal.getName());
         if (user == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized access");
         }
@@ -51,7 +58,7 @@ public class InstallmentPlanController {
         if(linkedAccountId == null){
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Linked account is required");
         }
-        Account linkedAccount = accountRepository.findById(linkedAccountId)
+        Account linkedAccount = accountDAO.findById(linkedAccountId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Linked account not found"));
         if (!linkedAccount.getOwner().getId().equals(user.getId())) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body("account does not belong to user");
@@ -63,17 +70,19 @@ public class InstallmentPlanController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Invalid parameters");
         }
 
+        if(feeRate.compareTo(BigDecimal.valueOf(100.00))>0){
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Fee rate must be between 0 and 1");
+        }
+
         InstallmentPlan installmentPlan = new InstallmentPlan(totalAmount,
                                                               totalPeriods,
                                                               feeRate,
                                                               paidPeriods,
                                                               feeStrategy,
                                                               linkedAccount);
-        installmentPlanRepository.save(installmentPlan);
+        installmentPlanDAO.save(installmentPlan);
         ((CreditAccount) linkedAccount).addInstallmentPlan(installmentPlan);
-        //((CreditAccount) linkedAccount).getInstallmentPlans().add(installmentPlan);
-        //((CreditAccount) linkedAccount).setCurrentDebt(((CreditAccount) linkedAccount).getCurrentDebt().add(installmentPlan.getRemainingAmount()).setScale(2, RoundingMode.HALF_UP));
-        accountRepository.save(linkedAccount);
+        accountDAO.save(linkedAccount);
 
         return ResponseEntity.ok("installment plan created successfully");
 
@@ -93,12 +102,12 @@ public class InstallmentPlanController {
         if(principal == null){
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized access");
         }
-        User user=userRepository.findByUsername(principal.getName());
+        User user= userDAO.findByUsername(principal.getName());
         if (user == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized access");
         }
 
-        InstallmentPlan installmentPlan = installmentPlanRepository.findById(id).orElse(null);
+        InstallmentPlan installmentPlan = installmentPlanDAO.findById(id).orElse(null);
         if (installmentPlan == null) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Installment plan not found");
         }
@@ -124,7 +133,7 @@ public class InstallmentPlanController {
         }
         installmentPlan.setRemainingAmount(installmentPlan.getRemainingAmountWithRepaidPeriods());
         if (linkedAccountId != null){// change linked account
-            Account creditAccount = accountRepository.findById(linkedAccountId)
+            Account creditAccount = accountDAO.findById(linkedAccountId)
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Linked account not found"));
             if ( !creditAccount.getOwner().getId().equals(user.getId())) {
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("account does not belong to user");
@@ -136,21 +145,20 @@ public class InstallmentPlanController {
                 CreditAccount oldAccount = (CreditAccount) installmentPlan.getLinkedAccount();
                 oldAccount.setCurrentDebt(oldAccount.getCurrentDebt().subtract(oldRemainingAmount).setScale(2, RoundingMode.HALF_UP));
                 oldAccount.getInstallmentPlans().remove(installmentPlan);
-                accountRepository.save(oldAccount);
+                accountDAO.save(oldAccount);
             }
 
             ((CreditAccount) creditAccount).addInstallmentPlan(installmentPlan);
-            //((CreditAccount) creditAccount).setCurrentDebt(((CreditAccount) creditAccount).getCurrentDebt().add(installmentPlan.getRemainingAmount()).setScale(2, RoundingMode.HALF_UP));
-            //((CreditAccount) creditAccount).getInstallmentPlans().add(installmentPlan);
-            accountRepository.save(creditAccount);
+
+            accountDAO.save(creditAccount);
             installmentPlan.setLinkedAccount(creditAccount);
         }else{ // no change to linked account
             // if other parameters change, need to update the linked account's current debt
             CreditAccount creditAccount = (CreditAccount) installmentPlan.getLinkedAccount();
             creditAccount.setCurrentDebt(creditAccount.getCurrentDebt().subtract(oldRemainingAmount).add(installmentPlan.getRemainingAmount()).setScale(2, RoundingMode.HALF_UP));
-            accountRepository.save(creditAccount);
+            accountDAO.save(creditAccount);
         }
-        installmentPlanRepository.save(installmentPlan);
+        installmentPlanDAO.save(installmentPlan);
 
         return ResponseEntity.ok("installment plan updated successfully");
 
@@ -164,11 +172,11 @@ public class InstallmentPlanController {
         if(principal == null){
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized access");
         }
-        User user=userRepository.findByUsername(principal.getName());
+        User user= userDAO.findByUsername(principal.getName());
         if (user == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized access");
         }
-        InstallmentPlan installmentPlan = installmentPlanRepository.findById(id).orElse(null);
+        InstallmentPlan installmentPlan = installmentPlanDAO.findById(id).orElse(null);
         if (installmentPlan == null) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Installment plan not found");
         }
@@ -180,11 +188,9 @@ public class InstallmentPlanController {
         CreditAccount creditAccount = (CreditAccount) installmentPlan.getLinkedAccount();
         creditAccount.removeInstallmentPlan(installmentPlan);
         installmentPlan.setLinkedAccount(null);
-        //creditAccount.setCurrentDebt(creditAccount.getCurrentDebt().subtract(installmentPlan.getRemainingAmount()).setScale(2, RoundingMode.HALF_UP));
-        //creditAccount.getInstallmentPlans().remove(installmentPlan);
-        accountRepository.save(creditAccount);
+        accountDAO.save(creditAccount);
 
-        installmentPlanRepository.delete(installmentPlan);
+        installmentPlanDAO.delete(installmentPlan);
 
         return ResponseEntity.ok("installment plan deleted successfully");
     }
@@ -201,16 +207,16 @@ public class InstallmentPlanController {
         if(principal == null){
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized access");
         }
-        User user = userRepository.findByUsername(principal.getName());
+        User user = userDAO.findByUsername(principal.getName());
         if (user == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized access");
         }
 
-        CreditAccount account = (CreditAccount) accountRepository.findById(creditAccountId).orElse(null);
+        CreditAccount account = (CreditAccount) accountDAO.findById(creditAccountId).orElse(null);
         if (account == null) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Credit account not found");
         }
-        InstallmentPlan installmentPlan = installmentPlanRepository.findById(id).orElse(null);
+        InstallmentPlan installmentPlan = installmentPlanDAO.findById(id).orElse(null);
         if (installmentPlan == null) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Installment plan not found");
         }
@@ -226,7 +232,7 @@ public class InstallmentPlanController {
 
         Ledger ledger=null;
         if(ledgerId != null) {
-            ledger= ledgerRepository.findById(ledgerId).orElse(null);
+            ledger= ledgerDAO.findById(ledgerId).orElse(null);
         }
         if(installmentPlan.getPaidPeriods() >= installmentPlan.getTotalPeriods()){
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Installment plan already fully paid");
@@ -256,15 +262,15 @@ public class InstallmentPlanController {
                 amount,
                 ledger
         );
-        transactionRepository.save(tx);
+        transactionDAO.save(tx);
         account.debit(amount);
         account.getOutgoingTransactions().add(tx);
         account.setCurrentDebt(account.getCurrentDebt().subtract(amount).setScale(2, RoundingMode.HALF_UP));
         if(ledger != null){
             ledger.getTransactions().add(tx);
         }
-        installmentPlanRepository.save(installmentPlan);
-        accountRepository.save(account);
+        installmentPlanDAO.save(installmentPlan);
+        accountDAO.save(account);
         return ResponseEntity.ok("Installment plan repaid successfully");
     }
 

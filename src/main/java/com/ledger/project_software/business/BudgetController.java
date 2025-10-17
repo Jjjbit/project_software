@@ -1,9 +1,9 @@
 package com.ledger.project_software.business;
 
-import com.ledger.project_software.Repository.BudgetRepository;
-import com.ledger.project_software.Repository.LedgerCategoryRepository;
-import com.ledger.project_software.Repository.TransactionRepository;
-import com.ledger.project_software.Repository.UserRepository;
+import com.ledger.project_software.orm.BudgetDAO;
+import com.ledger.project_software.orm.LedgerCategoryDAO;
+import com.ledger.project_software.orm.TransactionDAO;
+import com.ledger.project_software.orm.UserDAO;
 import com.ledger.project_software.domain.Budget;
 import com.ledger.project_software.domain.CategoryType;
 import com.ledger.project_software.domain.LedgerCategory;
@@ -25,21 +25,20 @@ import java.util.stream.Stream;
 @RestController
 @RequestMapping("/budgets")
 public class BudgetController {
-    private LedgerCategoryRepository ledgerCategoryRepository;
-    private TransactionRepository transactionRepository;
-    private BudgetRepository budgetRepository;
+    private final LedgerCategoryDAO ledgerCategoryDAO;
+    private final TransactionDAO transactionDAO;
+    private final BudgetDAO budgetDAO;
+    private final UserDAO userDAO;
 
-    private UserRepository userRepository;
 
-
-    public BudgetController(BudgetRepository budgetRepository,
-                            UserRepository userRepository,
-                            LedgerCategoryRepository ledgerCategoryRepository,
-                            TransactionRepository transactionRepository) {
-        this.budgetRepository = budgetRepository;
-        this.userRepository = userRepository;
-        this.ledgerCategoryRepository = ledgerCategoryRepository;
-        this.transactionRepository = transactionRepository;
+    public BudgetController(BudgetDAO budgetDAO,
+                            UserDAO userDAO,
+                            LedgerCategoryDAO ledgerCategoryDAO,
+                            TransactionDAO transactionDAO) {
+        this.budgetDAO = budgetDAO;
+        this.userDAO = userDAO;
+        this.ledgerCategoryDAO = ledgerCategoryDAO;
+        this.transactionDAO = transactionDAO;
 
     }
 
@@ -53,7 +52,7 @@ public class BudgetController {
         if (principal == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthenticated access");
         }
-        User user = userRepository.findByUsername(principal.getName());
+        User user = userDAO.findByUsername(principal.getName());
         if (user == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthenticated access");
         }
@@ -63,7 +62,7 @@ public class BudgetController {
         LedgerCategory categoryComponent = null;
 
         if(categoryComponentId != null){
-             categoryComponent= ledgerCategoryRepository.findById(categoryComponentId)
+             categoryComponent= ledgerCategoryDAO.findById(categoryComponentId)
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Category not found"));
             if (!categoryComponent.getLedger().getOwner().getId().equals(user.getId())) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Category does not belong to the user");
@@ -80,14 +79,14 @@ public class BudgetController {
                 return ResponseEntity.badRequest().body("Cannot set budget for income category");
             }
             categoryComponent.getBudgets().add(budget);
-            budgetRepository.save(budget);
+            budgetDAO.save(budget);
         } else { //uncategorized budget for user
             if (user.getBudgets().stream()
                     .anyMatch(b -> b.getPeriod() == period && b.isActive(LocalDate.now()))) {
                 return ResponseEntity.status(HttpStatus.CONFLICT).body("Budget for this period already exists");
             }
             user.getBudgets().add(budget);
-            budgetRepository.save(budget);
+            budgetDAO.save(budget);
         }
 
         return ResponseEntity.ok("Budget created successfully");
@@ -98,16 +97,16 @@ public class BudgetController {
     @Transactional
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<String> editBudget(@PathVariable Long id,
-                                               @RequestParam BigDecimal amount,
-                                               Principal principal) {
+                                             @RequestParam BigDecimal amount,
+                                             Principal principal) {
         if (principal == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthenticated access");
         }
-        User user = userRepository.findByUsername(principal.getName());
+        User user = userDAO.findByUsername(principal.getName());
         if (user == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthenticated access");
         }
-        Budget budget = budgetRepository.findById(id)
+        Budget budget = budgetDAO.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Budget not found"));
 
         if (!budget.getOwner().getId().equals(user.getId())) {
@@ -118,7 +117,7 @@ public class BudgetController {
         }
 
         budget.setAmount(amount);
-        budgetRepository.save(budget);
+        budgetDAO.save(budget);
         return ResponseEntity.ok("Budget updated successfully");
     }
 
@@ -130,11 +129,11 @@ public class BudgetController {
         if (principal == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthenticated access");
         }
-        User user = userRepository.findByUsername(principal.getName());
+        User user = userDAO.findByUsername(principal.getName());
         if (user == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthenticated access");
         }
-        Budget targetBudget = budgetRepository.findById(targetBudgetId)
+        Budget targetBudget = budgetDAO.findById(targetBudgetId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Target budget not found"));
 
         if (!targetBudget.getOwner().getId().equals(user.getId())) {
@@ -158,7 +157,7 @@ public class BudgetController {
                     .map(Budget::getAmount)
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
             targetBudget.setAmount(targetBudget.getAmount().add(mergedAmount));
-            budgetRepository.save(targetBudget);
+            budgetDAO.save(targetBudget);
         } else { //budget for category of first level
             if(targetBudget.getCategory().getParent() != null){
                 return ResponseEntity.badRequest().body("Target budget must be for a category");
@@ -173,7 +172,7 @@ public class BudgetController {
                     .map(Budget::getAmount)
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
             targetBudget.setAmount(targetBudget.getAmount().add(mergedAmount));
-            budgetRepository.save(targetBudget);
+            budgetDAO.save(targetBudget);
         }
 
         return ResponseEntity.ok("Budgets merged successfully");
@@ -187,11 +186,11 @@ public class BudgetController {
         if (principal == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthenticated access");
         }
-        User user = userRepository.findByUsername(principal.getName());
+        User user = userDAO.findByUsername(principal.getName());
         if (user == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthenticated access");
         }
-        Budget budget = budgetRepository.findById(id)
+        Budget budget = budgetDAO.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Budget not found"));
         if (!budget.getOwner().getId().equals(user.getId())) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Budget does not belong to the user");
@@ -206,7 +205,7 @@ public class BudgetController {
             }
 
         }
-        budgetRepository.delete(budget);
+        budgetDAO.delete(budget);
         return ResponseEntity.ok("Budget deleted successfully");
     }
 
@@ -219,7 +218,7 @@ public class BudgetController {
         if (principal == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
-        User user = userRepository.findByUsername(principal.getName());
+        User user = userDAO.findByUsername(principal.getName());
         if (user == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
@@ -228,7 +227,7 @@ public class BudgetController {
         BigDecimal totalCategorySpent = BigDecimal.ZERO;
 
         //uncategorized user budget. return zero values if not present
-        Optional<Budget> userBudgetOpt = budgetRepository.findActiveUncategorizedBudgetByUserId(user.getId(), today);
+        Optional<Budget> userBudgetOpt = budgetDAO.findActiveUncategorizedBudgetByUserId(user.getId(), today);
 
         LocalDate startDate;
         LocalDate endDate;
@@ -244,7 +243,7 @@ public class BudgetController {
 
         //list of Budgets activeBudgets = all categories budget in different ledger. empty list if none present
         //filter only category budgets with same period of uncategorized user budget, or monthly if no uncategorized user budget
-        List<Budget> activeBudgets = budgetRepository.findActiveCategoriesBudgetByUserId(user.getId(), today)
+        List<Budget> activeBudgets = budgetDAO.findActiveCategoriesBudgetByUserId(user.getId(), today)
                 .stream()
                 .filter(b -> userBudgetOpt.isEmpty() ? b.getPeriod() == Budget.Period.MONTHLY
                         : b.getPeriod() == userBudgetOpt.get().getPeriod())
@@ -276,7 +275,7 @@ public class BudgetController {
                     .map(Budget::getAmount)
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-            BigDecimal spent = transactionRepository.sumExpensesByCategoryIdsAndPeriod(
+            BigDecimal spent = transactionDAO.sumExpensesByCategoryIdsAndPeriod(
                     user.getId(),
                     categoryIds,
                     startDate,
@@ -291,7 +290,7 @@ public class BudgetController {
             List<LedgerCategory> allSubCategories = budgets.stream()
                     .map(Budget::getCategory)
                     .flatMap(parentCat -> {
-                        List<LedgerCategory> children = ledgerCategoryRepository.findByParentId(parentCat.getId());
+                        List<LedgerCategory> children = ledgerCategoryDAO.findByParentId(parentCat.getId());
                         return children != null ? children.stream() : Stream.empty();
                     })
                     .toList();
@@ -299,7 +298,7 @@ public class BudgetController {
             // for each subcategory, check if it has active budget. If yes, include its spent
             for (LedgerCategory subCat : allSubCategories) {
                 // check if subcategory has active budget with same period of uncategorized user budget, or monthly if no uncategorized user budget
-                Optional<Budget> subBudgetOpt = budgetRepository.findActiveSubCategoryBudget(
+                Optional<Budget> subBudgetOpt = budgetDAO.findActiveSubCategoryBudget(
                         user.getId(),
                         subCat.getId(),
                         today,
@@ -307,7 +306,7 @@ public class BudgetController {
                 );
 
                 if (subBudgetOpt.isPresent()) {
-                    BigDecimal subSpent = transactionRepository.sumExpensesBySubCategoryAndPeriod(
+                    BigDecimal subSpent = transactionDAO.sumExpensesBySubCategoryAndPeriod(
                             user.getId(),
                             subCat.getId(),
                             startDate,
@@ -359,12 +358,12 @@ public class BudgetController {
         if (principal == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
-        User user = userRepository.findByUsername(principal.getName());
+        User user = userDAO.findByUsername(principal.getName());
         if (user == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
 
-        Budget categoryBudget = budgetRepository.findById(id)
+        Budget categoryBudget = budgetDAO.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Budget not found"));
 
         if (!categoryBudget.getOwner().getId().equals(user.getId())) {
@@ -398,7 +397,7 @@ public class BudgetController {
             categoryIds.addAll(children.stream().map(LedgerCategory::getId).toList());
 
             //get active budget of category with same period of categoryBudget
-            Optional<Budget> parentBudgetOpt = budgetRepository.findActiveCategoryBudget(
+            Optional<Budget> parentBudgetOpt = budgetDAO.findActiveCategoryBudget(
                     user.getId(),
                     parentCat.getId(),
                     today,
@@ -408,7 +407,7 @@ public class BudgetController {
                 Budget b = parentBudgetOpt.get();
                 totalParentAmount = totalParentAmount.add(b.getAmount());
 
-                BigDecimal spent = transactionRepository.sumExpensesByCategoryIdsAndPeriod(
+                BigDecimal spent = transactionDAO.sumExpensesByCategoryIdsAndPeriod(
                         user.getId(),
                         categoryIds,
                         b.getStartDateForPeriod(today, b.getPeriod()),
@@ -446,7 +445,7 @@ public class BudgetController {
                     BigDecimal totalSpent = BigDecimal.ZERO;
 
                     for (LedgerCategory subCat : sameSubCats) {
-                        Optional<Budget> subBudgetOpt = budgetRepository.findActiveSubCategoryBudget(
+                        Optional<Budget> subBudgetOpt = budgetDAO.findActiveSubCategoryBudget(
                                 user.getId(),
                                 subCat.getId(),
                                 today,
@@ -457,7 +456,7 @@ public class BudgetController {
                             totalAmount = totalAmount.add(subBudgetOpt.get().getAmount());
                         }
 
-                        BigDecimal spent = transactionRepository.sumExpensesBySubCategoryAndPeriod(
+                        BigDecimal spent = transactionDAO.sumExpensesBySubCategoryAndPeriod(
                                 user.getId(),
                                 subCat.getId(),
                                 categoryBudget.getStartDateForPeriod(today, categoryBudget.getPeriod()),

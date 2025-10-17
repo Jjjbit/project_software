@@ -1,6 +1,6 @@
 package com.ledger.project_software;
 
-import com.ledger.project_software.Repository.*;
+import com.ledger.project_software.orm.*;
 import com.ledger.project_software.domain.*;
 import jakarta.transaction.Transactional;
 import org.junit.jupiter.api.Assertions;
@@ -28,18 +28,18 @@ public class InstallmentPlanTest {
     @Autowired
     private MockMvc mockMvc;
     @Autowired
-    private UserRepository userRepository;
+    private UserDAO userRepository;
     @Autowired
-    private AccountRepository accountRepository;
+    private AccountDAO accountRepository;
 
     private User testUser;
     private CreditAccount testAccount;
     @Autowired
-    private InstallmentPlanRepository installmentPlanRepository;
+    private InstallmentPlanDAO installmentPlanRepository;
     @Autowired
-    private LedgerRepository ledgerRepository;
+    private LedgerDAO ledgerRepository;
     @Autowired
-    private TransactionRepository transactionRepository;
+    private TransactionDAO transactionRepository;
 
     @BeforeEach
     public void setUp() {

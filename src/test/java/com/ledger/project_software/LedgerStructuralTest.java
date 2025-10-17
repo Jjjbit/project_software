@@ -1,6 +1,6 @@
 package com.ledger.project_software;
 
-import com.ledger.project_software.Repository.*;
+import com.ledger.project_software.orm.*;
 import com.ledger.project_software.business.LedgerController;
 import com.ledger.project_software.domain.*;
 import org.junit.jupiter.api.Assertions;
@@ -29,22 +29,22 @@ import static org.mockito.ArgumentMatchers.any;
 @ExtendWith(MockitoExtension.class) // inizializza i mock e gli injectMocks
 public class LedgerStructuralTest {
     @Mock
-    private UserRepository userRepository; //mock del repository per simulare il comportamento senza collegarsi al database
+    private UserDAO userRepository; //mock del repository per simulare il comportamento senza collegarsi al database
 
     @Mock
-    private LedgerRepository ledgerRepository;
+    private LedgerDAO ledgerRepository;
 
     @Mock
-    private LedgerCategoryRepository ledgerCategoryRepository;
+    private LedgerCategoryDAO ledgerCategoryRepository;
 
     @Mock
-    private CategoryRepository categoryRepository;
+    private CategoryDAO categoryRepository;
 
     @Mock
-    private AccountRepository accountRepository;
+    private AccountDAO accountRepository;
 
     @Mock
-    private TransactionRepository transactionRepository;
+    private TransactionDAO transactionRepository;
 
 
     @InjectMocks

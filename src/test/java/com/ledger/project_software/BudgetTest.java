@@ -1,6 +1,6 @@
 package com.ledger.project_software;
 
-import com.ledger.project_software.Repository.*;
+import com.ledger.project_software.orm.*;
 import com.ledger.project_software.domain.*;
 import jakarta.transaction.Transactional;
 import org.junit.jupiter.api.Assertions;
@@ -32,22 +32,22 @@ public class BudgetTest {
     private MockMvc mockMvc;
 
     @Autowired
-    private BudgetRepository budgetRepository;
+    private BudgetDAO budgetRepository;
 
     @Autowired
-    private UserRepository userRepository;
+    private UserDAO userRepository;
 
     @Autowired
-    private LedgerCategoryRepository ledgerCategoryRepository;
+    private LedgerCategoryDAO ledgerCategoryRepository;
 
     @Autowired
-    private LedgerRepository ledgerRepository;
+    private LedgerDAO ledgerRepository;
 
     @Autowired
-    private AccountRepository accountRepository;
+    private AccountDAO accountRepository;
 
     @Autowired
-    private TransactionRepository transactionRepository;
+    private TransactionDAO transactionRepository;
 
     private User testUser;
     private Ledger testLedger;

@@ -1,12 +1,11 @@
 package com.ledger.project_software;
 
-import com.ledger.project_software.Repository.*;
+import com.ledger.project_software.orm.*;
 import com.ledger.project_software.domain.*;
 import jakarta.transaction.Transactional;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -22,11 +21,8 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
-import java.util.List;
 
 import static org.hamcrest.Matchers.hasSize;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -41,22 +37,22 @@ public class AccountTest {
     private MockMvc mockMvc;
 
     @Autowired
-    private AccountRepository accountRepository;
+    private AccountDAO accountRepository;
 
     @Autowired
-    private LedgerCategoryRepository ledgerCategoryRepository;
+    private LedgerCategoryDAO ledgerCategoryRepository;
 
     @Autowired
-    private LedgerRepository ledgerRepository;
+    private LedgerDAO ledgerRepository;
 
     @Autowired
-    private UserRepository userRepository;
+    private UserDAO userRepository;
 
     @Autowired
-    private TransactionRepository transactionRepository;
+    private TransactionDAO transactionRepository;
 
     @Autowired
-    private InstallmentPlanRepository installmentPlanRepository;
+    private InstallmentPlanDAO installmentPlanRepository;
 
     private Ledger testLedger;
     private User testUser;
@@ -165,6 +161,7 @@ public class AccountTest {
                 AccountCategory.FUNDS,
                 testUser);
         accountRepository.save(account);
+        testUser.getAccounts().add(account);
 
         mockMvc.perform(post("/accounts/create-loan-account")
                         .param("accountName", "Test Account")
@@ -261,8 +258,8 @@ public class AccountTest {
 
         mockMvc.perform(post("/accounts/create-borrowing-account")
                         .param("name", "Mike")
-                        .param("balance", "1000")
                         .principal(() -> "Alice")
+                        .param("amount", "1000")
                         .param("note", "Test note")
                         .param("includeInAssets", "true")
                         .param("selectable", "true")
