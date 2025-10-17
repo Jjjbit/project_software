@@ -524,7 +524,6 @@ public class LedgerCategoryStructuralTest {
     //deleteCategory Tests
     @Test
     public void testDeleteCategory_Success_DeleteTransactions() {
-        // Arrange
         LedgerCategory categoryToDelete = new LedgerCategory("Transport", CategoryType.EXPENSE, testLedger);
         categoryToDelete.setId(20L);
 
