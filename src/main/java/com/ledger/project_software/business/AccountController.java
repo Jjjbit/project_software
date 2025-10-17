@@ -16,7 +16,10 @@ import java.math.RoundingMode;
 import java.security.Principal;
 import java.time.LocalDate;
 import java.time.YearMonth;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/accounts")
@@ -1183,5 +1186,49 @@ public class AccountController {
                 month.atEndOfMonth());
 
         return ResponseEntity.ok(transactions);
+    }
+
+    @GetMapping("/{id}/monthly-summary" )
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Map<String, Object>> getMonthlySummary(@PathVariable Long id,
+                                                                 @RequestParam @DateTimeFormat(pattern = "yyyy-MM") YearMonth month,
+                                                                 Principal principal) {
+        if (principal == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        Account account = accountRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Account not found"));
+
+        User user = userRepository.findByUsername(principal.getName());
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        if (!account.getOwner().getId().equals(user.getId())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
+        BigDecimal totalIncome=account.getIncomingTransactions().stream()
+                .filter(tx -> {
+                    LocalDate date = tx.getDate();
+                    return (date.getYear() == month.getYear() && date.getMonthValue() == month.getMonthValue());
+                })
+                .map(Transaction::getAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal totalExpense=account.getOutgoingTransactions().stream()
+                .filter(tx -> {
+                    LocalDate date = tx.getDate();
+                    return (date.getYear() == month.getYear() && date.getMonthValue() == month.getMonthValue());
+                })
+                .map(Transaction::getAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        Map<String, Object> summary = new LinkedHashMap<>();
+        summary.put("month", month.toString());
+        summary.put("totalIncome", totalIncome);
+        summary.put("totalExpense", totalExpense);
+
+        return ResponseEntity.ok(summary);
     }
 }
