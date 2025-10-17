@@ -503,4 +503,37 @@ public class BudgetTest {
                 .andExpect(jsonPath("$.subCategoryBudgets[0].remaining").value(250));
     }
 
+    @Test
+    @WithMockUser(username = "Alice")
+    public void testGetCategoryBudget_withoutSubcategoryBudgets() throws Exception {
+        Budget foodBudget = new Budget(BigDecimal.valueOf(800), Budget.Period.MONTHLY, foodCategory, testUser);
+        budgetRepository.save(foodBudget);
+        foodCategory.getBudgets().add(foodBudget);
+
+        Transaction tx1=new Expense(LocalDate.now(), BigDecimal.valueOf(170), null, testAccount1,testLedger,foodCategory);
+        transactionRepository.save(tx1);
+        testLedger.getTransactions().add(tx1);
+        testAccount1.addTransaction(tx1);
+        foodCategory.getTransactions().add(tx1);
+
+        accountRepository.save(testAccount1);
+        ledgerRepository.save(testLedger);
+        ledgerCategoryRepository.save(foodCategory);
+
+        mockMvc.perform(get("/budgets/{id}", foodBudget.getId())
+                        .principal(() -> "Alice"))
+                .andExpect(status().isOk())
+                .andDo(print())
+                .andExpect(jsonPath("$.category").value("Food"))
+                .andExpect(jsonPath("$.amount").value(800))
+                .andExpect(jsonPath("$.spent").value(170))
+                .andExpect(jsonPath("$.remaining").value(630))
+                .andExpect(jsonPath("$.subCategoryBudgets", hasSize(1)))
+                .andExpect(jsonPath("$.subCategoryBudgets[0].subCategory").value("Lunch"))
+                .andExpect(jsonPath("$.subCategoryBudgets[0].amount").value(0))
+                .andExpect(jsonPath("$.subCategoryBudgets[0].spent").value(0))
+                .andExpect(jsonPath("$.subCategoryBudgets[0].remaining").value(0));
+
+    }
+
 }

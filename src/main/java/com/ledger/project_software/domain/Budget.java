@@ -23,7 +23,7 @@ public class Budget {
 
     @Column(name = "period", nullable = false)
     @Enumerated(EnumType.STRING)
-    private Period period; // e.g., "monthly", "yearly", "weekly"
+    private Period period; // e.g., "monthly", "yearly"
 
     @ManyToOne
     @JoinColumn(name = "category_id")
@@ -88,6 +88,15 @@ public class Budget {
     }
     public User getOwner() {
         return owner;
+    }
+    public void setOwner(User owner) {
+        this.owner = owner;
+    }
+    public void setStartDate(LocalDate startDate) {
+        this.startDate = startDate;
+    }
+    public void setEndDate(LocalDate endDate) {
+        this.endDate = endDate;
     }
 
 

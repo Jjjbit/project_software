@@ -19,7 +19,6 @@ import java.math.BigDecimal;
 import java.security.Principal;
 import java.time.LocalDate;
 import java.util.*;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -81,7 +80,6 @@ public class BudgetController {
                 return ResponseEntity.badRequest().body("Cannot set budget for income category");
             }
             categoryComponent.getBudgets().add(budget);
-            //ledgerCategoryRepository.save(categoryComponent);
             budgetRepository.save(budget);
         } else { //uncategorized budget for user
             if (user.getBudgets().stream()
@@ -154,7 +152,6 @@ public class BudgetController {
                     .flatMap(c -> c.getBudgets().stream()) //tutti i budget di tutte le categorie e subcategorie di tutti i ledger di user
                     .filter(b -> b.getCategory().getParent()== null) //esclude categorie di secondo livello
                     .filter(b -> b.getPeriod() == targetBudget.getPeriod()) //stesso periodo
-                    //.filter(b -> !b.getId().equals(targetBudgetId)) //esclude target
                     .filter(b -> b.isActive(LocalDate.now()))//solo budget attivi
                     .toList();//tutti i budget di tutte categorie di primo livello attivi in periodo di targetBudget
             BigDecimal mergedAmount = sourceBudgets.stream()
@@ -204,10 +201,8 @@ public class BudgetController {
                 LedgerCategory category = budget.getCategory();
                 category.getBudgets().remove(budget);
                 budget.setCategory(null);
-                //ledgerCategoryComponentRepository.save(category);
             } else { //uncategorized budget
                 user.getBudgets().remove(budget);
-                //userRepository.save(user);
             }
 
         }
@@ -235,7 +230,6 @@ public class BudgetController {
         //uncategorized user budget. return zero values if not present
         Optional<Budget> userBudgetOpt = budgetRepository.findActiveUncategorizedBudgetByUserId(user.getId(), today);
 
-        BigDecimal userSpent;
         LocalDate startDate;
         LocalDate endDate;
 
