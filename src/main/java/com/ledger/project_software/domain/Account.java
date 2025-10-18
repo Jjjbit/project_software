@@ -177,34 +177,7 @@ public abstract class Account {
                 incomingTransactions.add(transaction);
             }
         }
-        //transaction.execute();
     }
 
-
-    public List<Transaction> getTransactionsForMonth(YearMonth month) {
-        return getTransactions().stream()
-                .filter(t -> t.getDate().getYear() == month.getYear() && t.getDate().getMonth() == month.getMonth())
-                .sorted(Comparator.comparing(Transaction::getDate).reversed())
-                .collect(Collectors.toList());
-    }
-
-    public BigDecimal getAccountTotalIncomeForMonth(YearMonth month) {
-        return getTransactionsForMonth(month).stream()
-                .filter(tx -> tx.getType() == TransactionType.INCOME
-                        || (tx.getType() == TransactionType.TRANSFER
-                        && tx instanceof Transfer
-                        && ((Transfer) tx).getToAccount().equals(this)))
-                .map(Transaction::getAmount)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-    }
-    public BigDecimal getAccountTotalExpenseForMonth(YearMonth month) {
-        return getTransactionsForMonth(month).stream()
-                .filter(tx -> tx.getType() == TransactionType.EXPENSE
-                        || (tx.getType() == TransactionType.TRANSFER
-                        && tx instanceof Transfer
-                        && ((Transfer) tx).getFromAccount().equals(this)))
-                .map(Transaction::getAmount)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-    }
 
 }
