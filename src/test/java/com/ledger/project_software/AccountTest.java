@@ -25,6 +25,7 @@ import java.time.format.DateTimeFormatter;
 import static org.hamcrest.Matchers.hasSize;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 
@@ -37,22 +38,22 @@ public class AccountTest {
     private MockMvc mockMvc;
 
     @Autowired
-    private AccountDAO accountRepository;
+    private AccountDAO accountDAO;
 
     @Autowired
-    private LedgerCategoryDAO ledgerCategoryRepository;
+    private LedgerCategoryDAO ledgerCategoryDAO;
 
     @Autowired
-    private LedgerDAO ledgerRepository;
+    private LedgerDAO ledgerDAO;
 
     @Autowired
-    private UserDAO userRepository;
+    private UserDAO userDAO;
 
     @Autowired
-    private TransactionDAO transactionRepository;
+    private TransactionDAO transactionDAO;
 
     @Autowired
-    private InstallmentPlanDAO installmentPlanRepository;
+    private InstallmentPlanDAO installmentPlanDAO;
 
     private Ledger testLedger;
     private User testUser;
@@ -62,21 +63,21 @@ public class AccountTest {
     @BeforeEach
     public void setUp() {
         testUser = new User("Alice", "password123");
-        userRepository.save(testUser);
+        userDAO.save(testUser);
 
         testLedger = new Ledger("Test Ledger", testUser);
-        ledgerRepository.save(testLedger);
+        ledgerDAO.save(testLedger);
         testUser.getLedgers().add(testLedger);
 
         foodCategory = new LedgerCategory("Food", CategoryType.EXPENSE, testLedger);
-        ledgerCategoryRepository.save(foodCategory);
+        ledgerCategoryDAO.save(foodCategory);
         testLedger.getCategories().add(foodCategory);
 
         salaryCategory = new LedgerCategory("Salary", CategoryType.INCOME, testLedger);
-        ledgerCategoryRepository.save(salaryCategory);
+        ledgerCategoryDAO.save(salaryCategory);
         testLedger.getCategories().add(salaryCategory);
-        ledgerRepository.save(testLedger);
-        userRepository.save(testUser);
+        ledgerDAO.save(testLedger);
+        userDAO.save(testUser);
     }
 
     @Configuration //converte String in YearMonth per i test
@@ -109,10 +110,10 @@ public class AccountTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string("Basic account created successfully"));
 
-        Account createdAccount = accountRepository.findByName("Test Account");
+        Account createdAccount = accountDAO.findByName("Test Account");
         Assertions.assertNotNull(createdAccount);
 
-        User user = userRepository.findByUsername(testUser.getUsername());
+        User user = userDAO.findByUsername(testUser.getUsername());
         Assertions.assertEquals(0, user.getTotalAssets().compareTo(new BigDecimal("1000")));
         Assertions.assertEquals(1, user.getAccounts().size());
 
@@ -136,14 +137,14 @@ public class AccountTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string("Credit account created successfully"));
 
-        Account createdAccount = accountRepository.findByName("Test Account");
+        Account createdAccount = accountDAO.findByName("Test Account");
         Assertions.assertNotNull(createdAccount);
 
         Assertions.assertEquals(0, ((CreditAccount)createdAccount).getCurrentDebt().compareTo(BigDecimal.ZERO));
         Assertions.assertNull(((CreditAccount)createdAccount).getBillDay());
         Assertions.assertNull(((CreditAccount)createdAccount).getDueDay());
 
-        User updateUser= userRepository.findByUsername(testUser.getUsername());
+        User updateUser= userDAO.findByUsername(testUser.getUsername());
         Assertions.assertEquals(1, updateUser.getAccounts().size());
         Assertions.assertEquals(0, updateUser.getNetAssets().compareTo(new BigDecimal("1000")));
         Assertions.assertEquals(0, updateUser.getTotalLiabilities().compareTo(BigDecimal.ZERO));
@@ -160,7 +161,7 @@ public class AccountTest {
                 AccountType.CASH,
                 AccountCategory.FUNDS,
                 testUser);
-        accountRepository.save(account);
+        accountDAO.save(account);
         testUser.getAccounts().add(account);
 
         mockMvc.perform(post("/accounts/create-loan-account")
@@ -178,11 +179,11 @@ public class AccountTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string("Loan account created successfully"));
 
-        Account createdAccount =accountRepository.findByName("Test Account");
+        Account createdAccount = accountDAO.findByName("Test Account");
         Assertions.assertNotNull(createdAccount);
         Assertions.assertEquals(1, createdAccount.getTransactions().size());
 
-        User updateUser= userRepository.findByUsername(testUser.getUsername());
+        User updateUser= userDAO.findByUsername(testUser.getUsername());
         Assertions.assertEquals(2, updateUser.getAccounts().size());
 
         Assertions.assertEquals(0, updateUser.getTotalAssets().compareTo(new BigDecimal("1000")));
@@ -204,10 +205,10 @@ public class AccountTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string("Loan account created successfully"));
 
-        Account createdAccount1 =accountRepository.findByName("Test Account 1");
+        Account createdAccount1 = accountDAO.findByName("Test Account 1");
         Assertions.assertNotNull(createdAccount1);
 
-        User updateUser1= userRepository.findByUsername(testUser.getUsername());
+        User updateUser1= userDAO.findByUsername(testUser.getUsername());
         Assertions.assertEquals(3, updateUser1.getAccounts().size());
         Assertions.assertEquals(0, updateUser1.getTotalAssets().compareTo(new BigDecimal("1000")));
         Assertions.assertEquals(0, updateUser1.getTotalLiabilities().compareTo(new BigDecimal("200.22")));
@@ -231,12 +232,12 @@ public class AccountTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string("Borrowing account created successfully"));
 
-        Account createdAccount = accountRepository.findByName("Bob");
+        Account createdAccount = accountDAO.findByName("Bob");
         Assertions.assertNotNull(createdAccount);
         Assertions.assertEquals(0, createdAccount.getBalance().compareTo(BigDecimal.valueOf(1000)));
         Assertions.assertEquals(1, createdAccount.getOutgoingTransactions().size());
 
-        User updateUser= userRepository.findById(testUser.getId()).orElse(null);
+        User updateUser= userDAO.findById(testUser.getId()).orElse(null);
         Assertions.assertEquals(1, updateUser.getAccounts().size());
         Assertions.assertEquals(0, updateUser.getTotalAssets().compareTo(BigDecimal.ZERO));
         Assertions.assertEquals(0, updateUser.getTotalLiabilities().compareTo(BigDecimal.valueOf(1000)));
@@ -253,7 +254,7 @@ public class AccountTest {
                 AccountCategory.FUNDS,
                 testUser
         );
-        accountRepository.save(account);
+        accountDAO.save(account);
         testUser.getAccounts().add(account);
 
         mockMvc.perform(post("/accounts/create-borrowing-account")
@@ -268,16 +269,16 @@ public class AccountTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string("Borrowing account created successfully"));
 
-        Account createdAccount1 = accountRepository.findByName("Mike");
+        Account createdAccount1 = accountDAO.findByName("Mike");
         Assertions.assertNotNull(createdAccount1);
         Assertions.assertEquals(0, createdAccount1.getBalance().compareTo(BigDecimal.valueOf(1000)));
         Assertions.assertEquals(1, createdAccount1.getOutgoingTransactions().size());
 
-        Account updatedAccount = accountRepository.findById(account.getId()).orElse(null);
+        Account updatedAccount = accountDAO.findById(account.getId()).orElse(null);
         Assertions.assertEquals(1, updatedAccount.getIncomingTransactions().size());
         Assertions.assertEquals(0, updatedAccount.getBalance().compareTo(BigDecimal.valueOf(2000)));
 
-        User updateUser1= userRepository.findById(testUser.getId()).orElse(null);
+        User updateUser1= userDAO.findById(testUser.getId()).orElse(null);
         Assertions.assertEquals(3, updateUser1.getAccounts().size());
         Assertions.assertEquals(0, updateUser1.getTotalAssets().compareTo(BigDecimal.valueOf(2000)));
         Assertions.assertEquals(0, updateUser1.getTotalLiabilities().compareTo(BigDecimal.valueOf(2000)));
@@ -300,13 +301,13 @@ public class AccountTest {
                 .andExpect(content().string("Lending account created successfully"));
 
 
-        Account createdAccount = accountRepository.findByName("Bob");
+        Account createdAccount = accountDAO.findByName("Bob");
         Assertions.assertNotNull(createdAccount);
         Assertions.assertEquals(0, createdAccount.getBalance().compareTo(BigDecimal.valueOf(1000)));
         Assertions.assertEquals(1, createdAccount.getIncomingTransactions().size());
 
 
-        User updateUser= userRepository.findById(testUser.getId()).orElse(null);
+        User updateUser= userDAO.findById(testUser.getId()).orElse(null);
         Assertions.assertEquals(1, updateUser.getAccounts().size());
         Assertions.assertEquals(0, updateUser.getTotalAssets().compareTo(BigDecimal.valueOf(1000)));
         Assertions.assertEquals(0, updateUser.getTotalLiabilities().compareTo(BigDecimal.ZERO));
@@ -324,7 +325,7 @@ public class AccountTest {
                 AccountCategory.FUNDS,
                 testUser
         );
-        accountRepository.save(account);
+        accountDAO.save(account);
         testUser.getAccounts().add(account);
 
         mockMvc.perform(post("/accounts/create-lending-account")
@@ -339,16 +340,16 @@ public class AccountTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string("Lending account created successfully"));
 
-        Account createdAccount1 = accountRepository.findByName("Mike");
+        Account createdAccount1 = accountDAO.findByName("Mike");
         Assertions.assertNotNull(createdAccount1);
         Assertions.assertEquals(0, createdAccount1.getBalance().compareTo(BigDecimal.valueOf(1000)));
         Assertions.assertEquals(1, createdAccount1.getIncomingTransactions().size());
 
-        Account updatedAccount = accountRepository.findById(account.getId()).orElse(null);
+        Account updatedAccount = accountDAO.findById(account.getId()).orElse(null);
         Assertions.assertEquals(1, updatedAccount.getOutgoingTransactions().size());
         Assertions.assertEquals(0, updatedAccount.getBalance().compareTo(BigDecimal.valueOf(0)));
 
-        User updateUser1= userRepository.findById(testUser.getId()).orElse(null);
+        User updateUser1= userDAO.findById(testUser.getId()).orElse(null);
         Assertions.assertEquals(3, updateUser1.getAccounts().size());
         Assertions.assertEquals(0, updateUser1.getTotalAssets().compareTo(BigDecimal.valueOf(2000)));
         Assertions.assertEquals(0, updateUser1.getTotalLiabilities().compareTo(BigDecimal.ZERO));
@@ -370,9 +371,9 @@ public class AccountTest {
                 null,
                 AccountType.CREDIT_CARD
         );
-        accountRepository.save(account);
+        accountDAO.save(account);
         testUser.getAccounts().add(account);
-        userRepository.save(testUser);
+        userDAO.save(testUser);
 
         InstallmentPlan installmentPlan = new InstallmentPlan(
                 BigDecimal.valueOf(1200), // total amount
@@ -382,7 +383,7 @@ public class AccountTest {
                 InstallmentPlan.FeeStrategy.EVENLY_SPLIT,
                 account // linked account
         );
-        installmentPlanRepository.save(installmentPlan);
+        installmentPlanDAO.save(installmentPlan);
         ((CreditAccount) account).addInstallmentPlan(installmentPlan);
 
         //repay installment plan and part of debt
@@ -392,8 +393,8 @@ public class AccountTest {
         // Add transactions to the account
         Transaction transaction1 = new Expense(LocalDate.now(), BigDecimal.valueOf(10),null, account, testLedger, foodCategory);
         Transaction transaction2 = new Income(LocalDate.now(), BigDecimal.valueOf(1500), null, account, testLedger, salaryCategory);
-        transactionRepository.save(transaction1);
-        transactionRepository.save(transaction2);
+        transactionDAO.save(transaction1);
+        transactionDAO.save(transaction2);
 
         account.addTransaction(transaction1);
         account.addTransaction(transaction2);
@@ -402,10 +403,10 @@ public class AccountTest {
         foodCategory.getTransactions().add(transaction1);
         salaryCategory.getTransactions().add(transaction2);
 
-        accountRepository.save(account);
-        ledgerRepository.save(testLedger);
-        ledgerCategoryRepository.save(foodCategory);
-        ledgerCategoryRepository.save(salaryCategory);
+        accountDAO.save(account);
+        ledgerDAO.save(testLedger);
+        ledgerCategoryDAO.save(foodCategory);
+        ledgerCategoryDAO.save(salaryCategory);
 
         mockMvc.perform(delete("/accounts/" + account.getId())
                         .param("deleteTransactions", "true")
@@ -413,31 +414,31 @@ public class AccountTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string("Account and associated transactions deleted successfully"));
 
-        Account deletedAccount1 = accountRepository.findById(account.getId()).orElse(null);
+        Account deletedAccount1 = accountDAO.findById(account.getId()).orElse(null);
         Assertions.assertNull(deletedAccount1);
 
-        Ledger updatedLedger = ledgerRepository.findById(testLedger.getId()).orElse(null);
+        Ledger updatedLedger = ledgerDAO.findById(testLedger.getId()).orElse(null);
         Assertions.assertEquals(0, updatedLedger.getTransactions().size());
         Assertions.assertEquals(0, updatedLedger.getTotalIncomeForMonth(YearMonth.now()).compareTo(BigDecimal.ZERO));
         Assertions.assertEquals(0, updatedLedger.getTotalExpenseForMonth(YearMonth.now()).compareTo(BigDecimal.ZERO));
 
-        User updatedUser = userRepository.findById(testUser.getId()).orElse(null);
+        User updatedUser = userDAO.findById(testUser.getId()).orElse(null);
         Assertions.assertEquals(0, updatedUser.getNetAssets().compareTo(BigDecimal.ZERO));
         Assertions.assertEquals(0, updatedUser.getTotalLiabilities().compareTo(BigDecimal.ZERO));
         Assertions.assertEquals(0, updatedUser.getTotalAssets().compareTo(BigDecimal.ZERO));
 
-        InstallmentPlan plan = installmentPlanRepository.findById(installmentPlan.getId()).orElse(null);
+        InstallmentPlan plan = installmentPlanDAO.findById(installmentPlan.getId()).orElse(null);
         Assertions.assertNull(plan);
 
-        Transaction deletedTransaction1 = transactionRepository.findById(transaction1.getId()).orElse(null);
+        Transaction deletedTransaction1 = transactionDAO.findById(transaction1.getId()).orElse(null);
         Assertions.assertNull(deletedTransaction1);
 
-        Transaction deletedTransaction2 = transactionRepository.findById(transaction2.getId()).orElse(null);
+        Transaction deletedTransaction2 = transactionDAO.findById(transaction2.getId()).orElse(null);
         Assertions.assertNull(deletedTransaction2);
 
-        LedgerCategory updatedFoodCategory = ledgerCategoryRepository.findById(foodCategory.getId()).orElse(null);
+        LedgerCategory updatedFoodCategory = ledgerCategoryDAO.findById(foodCategory.getId()).orElse(null);
         Assertions.assertEquals(0, updatedFoodCategory.getTransactions().size());
-        LedgerCategory updatedSalaryCategory = ledgerCategoryRepository.findById(salaryCategory.getId()).orElse(null);
+        LedgerCategory updatedSalaryCategory = ledgerCategoryDAO.findById(salaryCategory.getId()).orElse(null);
         Assertions.assertEquals(0, updatedSalaryCategory.getTransactions().size());
 
     }
@@ -457,9 +458,9 @@ public class AccountTest {
                 null,
                 AccountType.CREDIT_CARD
         );
-        accountRepository.save(account);
+        accountDAO.save(account);
         testUser.getAccounts().add(account);
-        userRepository.save(testUser);
+        userDAO.save(testUser);
 
         InstallmentPlan installmentPlan = new InstallmentPlan(
                 BigDecimal.valueOf(1200), // total amount
@@ -469,7 +470,7 @@ public class AccountTest {
                 InstallmentPlan.FeeStrategy.EVENLY_SPLIT,
                 account // linked account
         );
-        installmentPlanRepository.save(installmentPlan);
+        installmentPlanDAO.save(installmentPlan);
         ((CreditAccount) account).addInstallmentPlan(installmentPlan);
 
         ((CreditAccount) account).repayInstallmentPlan(installmentPlan, testLedger);
@@ -478,8 +479,8 @@ public class AccountTest {
         // Add transactions to the account
         Transaction transaction1 = new Expense(LocalDate.now(), BigDecimal.valueOf(10),null, account, testLedger, foodCategory);
         Transaction transaction2 = new Income(LocalDate.now(), BigDecimal.valueOf(1500), null, account, testLedger, salaryCategory);
-        transactionRepository.save(transaction1);
-        transactionRepository.save(transaction2);
+        transactionDAO.save(transaction1);
+        transactionDAO.save(transaction2);
 
         account.addTransaction(transaction1);
         account.addTransaction(transaction2);
@@ -488,10 +489,10 @@ public class AccountTest {
         foodCategory.getTransactions().add(transaction1);
         salaryCategory.getTransactions().add(transaction2);
 
-        accountRepository.save(account);
-        ledgerRepository.save(testLedger);
-        ledgerCategoryRepository.save(foodCategory);
-        ledgerCategoryRepository.save(salaryCategory);
+        accountDAO.save(account);
+        ledgerDAO.save(testLedger);
+        ledgerCategoryDAO.save(foodCategory);
+        ledgerCategoryDAO.save(salaryCategory);
 
         mockMvc.perform(delete("/accounts/" + account.getId())
                         .param("deleteTransactions", "false")
@@ -499,31 +500,31 @@ public class AccountTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string("Account disassociated from transactions and deleted successfully"));
 
-        Account deletedAccount = accountRepository.findById(account.getId()).orElse(null); //cerca account da database
+        Account deletedAccount = accountDAO.findById(account.getId()).orElse(null); //cerca account da database
         Assertions.assertNull(deletedAccount);
 
-        Ledger updatedLedger = ledgerRepository.findById(testLedger.getId()).orElse(null);
+        Ledger updatedLedger = ledgerDAO.findById(testLedger.getId()).orElse(null);
         Assertions.assertEquals(4, updatedLedger.getTransactions().size());
         Assertions.assertEquals(0, updatedLedger.getTotalIncomeForMonth(YearMonth.now()).compareTo(BigDecimal.valueOf(1500)));
         Assertions.assertEquals(0, updatedLedger.getTotalExpenseForMonth(YearMonth.now()).compareTo(BigDecimal.valueOf(10)));
 
-        InstallmentPlan plan = installmentPlanRepository.findById(installmentPlan.getId()).orElse(null);
+        InstallmentPlan plan = installmentPlanDAO.findById(installmentPlan.getId()).orElse(null);
         Assertions.assertNull(plan);
 
-        User updatedUser = userRepository.findById(testUser.getId()).orElse(null);
+        User updatedUser = userDAO.findById(testUser.getId()).orElse(null);
         Assertions.assertEquals(0, updatedUser.getTotalAssets().compareTo(BigDecimal.ZERO));
         Assertions.assertEquals(0, updatedUser.getTotalLiabilities().compareTo(BigDecimal.ZERO));
         Assertions.assertEquals(0, updatedUser.getNetAssets().compareTo(BigDecimal.ZERO));
 
-        Transaction updatedTransaction1 = transactionRepository.findById(transaction1.getId()).orElse(null);
+        Transaction updatedTransaction1 = transactionDAO.findById(transaction1.getId()).orElse(null);
         Assertions.assertNotNull(updatedTransaction1);
 
-        Transaction updatedTransaction2 = transactionRepository.findById(transaction2.getId()).orElse(null);
+        Transaction updatedTransaction2 = transactionDAO.findById(transaction2.getId()).orElse(null);
         Assertions.assertNotNull(updatedTransaction2);
 
-        LedgerCategory updatedFoodCategory = ledgerCategoryRepository.findById(foodCategory.getId()).orElse(null);
+        LedgerCategory updatedFoodCategory = ledgerCategoryDAO.findById(foodCategory.getId()).orElse(null);
         Assertions.assertEquals(1, updatedFoodCategory.getTransactions().size());
-        LedgerCategory updatedSalaryCategory = ledgerCategoryRepository.findById(salaryCategory.getId()).orElse(null);
+        LedgerCategory updatedSalaryCategory = ledgerCategoryDAO.findById(salaryCategory.getId()).orElse(null);
         Assertions.assertEquals(1, updatedSalaryCategory.getTransactions().size());
     }
 
@@ -538,7 +539,7 @@ public class AccountTest {
                 AccountType.CASH,
                 AccountCategory.FUNDS,
                 testUser);
-        accountRepository.save(receivingAccount);
+        accountDAO.save(receivingAccount);
         testUser.getAccounts().add(receivingAccount);
 
         Account account = new LoanAccount("Test Account",
@@ -553,16 +554,16 @@ public class AccountTest {
                 LocalDate.now(),
                 LoanAccount.RepaymentType.EQUAL_INTEREST
         );
-        accountRepository.save(account);
+        accountDAO.save(account);
         testUser.getAccounts().add(account);
-        userRepository.save(testUser);
+        userDAO.save(testUser);
 
         ((LoanAccount) account).repayLoan(null, testLedger);
         ((LoanAccount) account).repayLoan(receivingAccount, testLedger);
 
-        accountRepository.save(account);
-        accountRepository.save(receivingAccount);
-        ledgerRepository.save(testLedger);
+        accountDAO.save(account);
+        accountDAO.save(receivingAccount);
+        ledgerDAO.save(testLedger);
 
         mockMvc.perform(delete("/accounts/" + account.getId())
                         .param("deleteTransactions", "true")
@@ -570,17 +571,17 @@ public class AccountTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string("Account and associated transactions deleted successfully"));
 
-        Account deletedAccount = accountRepository.findById(account.getId()).orElse(null);
+        Account deletedAccount = accountDAO.findById(account.getId()).orElse(null);
         Assertions.assertNull(deletedAccount);
 
-        Account updatedReceivingAccount = accountRepository.findById(receivingAccount.getId()).orElse(null);
+        Account updatedReceivingAccount = accountDAO.findById(receivingAccount.getId()).orElse(null);
         Assertions.assertEquals(0, updatedReceivingAccount.getTransactions().size());
 
 
-        Ledger updatedLedger = ledgerRepository.findById(testLedger.getId()).orElse(null);
+        Ledger updatedLedger = ledgerDAO.findById(testLedger.getId()).orElse(null);
         Assertions.assertEquals(0, updatedLedger.getTransactions().size());
 
-        User updatedUser = userRepository.findById(testUser.getId()).orElse(null);
+        User updatedUser = userDAO.findById(testUser.getId()).orElse(null);
         Assertions.assertEquals(0, updatedUser.getTotalAssets().compareTo(BigDecimal.valueOf(997.18)));
         Assertions.assertEquals(0, updatedUser.getTotalLiabilities().compareTo(BigDecimal.ZERO));
         Assertions.assertEquals(0, updatedUser.getNetAssets().compareTo(BigDecimal.valueOf(997.18)));
@@ -597,7 +598,7 @@ public class AccountTest {
                 AccountType.CASH,
                 AccountCategory.FUNDS,
                 testUser);
-        accountRepository.save(receivingAccount);
+        accountDAO.save(receivingAccount);
         testUser.getAccounts().add(receivingAccount);
 
         Account account = new LoanAccount("Test Account",
@@ -612,17 +613,17 @@ public class AccountTest {
                 LocalDate.now(),
                 LoanAccount.RepaymentType.EQUAL_INTEREST
         );
-        accountRepository.save(account);
+        accountDAO.save(account);
         testUser.getAccounts().add(account);
-        userRepository.save(testUser);
+        userDAO.save(testUser);
         //remaing loan amount should be 98.70
 
         ((LoanAccount) account).repayLoan(null, testLedger);
         ((LoanAccount) account).repayLoan(receivingAccount, testLedger);
 
-        accountRepository.save(account);
-        accountRepository.save(receivingAccount);
-        ledgerRepository.save(testLedger);
+        accountDAO.save(account);
+        accountDAO.save(receivingAccount);
+        ledgerDAO.save(testLedger);
 
         mockMvc.perform(delete("/accounts/" + account.getId())
                         .param("deleteTransactions", "false")
@@ -630,16 +631,16 @@ public class AccountTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string("Account disassociated from transactions and deleted successfully"));
 
-        Account deletedAccount = accountRepository.findById(account.getId()).orElse(null); //cerca account da database
+        Account deletedAccount = accountDAO.findById(account.getId()).orElse(null); //cerca account da database
         Assertions.assertNull(deletedAccount);
 
-        Account updatedReceivingAccount = accountRepository.findById(receivingAccount.getId()).orElse(null);
+        Account updatedReceivingAccount = accountDAO.findById(receivingAccount.getId()).orElse(null);
         Assertions.assertEquals(1, updatedReceivingAccount.getTransactions().size());
 
-        Ledger updatedLedger = ledgerRepository.findById(testLedger.getId()).orElse(null);
+        Ledger updatedLedger = ledgerDAO.findById(testLedger.getId()).orElse(null);
         Assertions.assertEquals(2, updatedLedger.getTransactions().size());
 
-        User updatedUser = userRepository.findById(testUser.getId()).orElse(null);
+        User updatedUser = userDAO.findById(testUser.getId()).orElse(null);
         Assertions.assertEquals(0, updatedUser.getTotalAssets().compareTo(new BigDecimal("997.18")));
         Assertions.assertEquals(0, updatedUser.getTotalLiabilities().compareTo(new BigDecimal("0")));
         Assertions.assertEquals(0, updatedUser.getNetAssets().compareTo(new BigDecimal("997.18")));
@@ -656,15 +657,15 @@ public class AccountTest {
                 AccountType.CASH,
                 AccountCategory.FUNDS,
                 testUser);
-        accountRepository.save(account);
+        accountDAO.save(account);
         testUser.getAccounts().add(account);
-        userRepository.save(testUser);
+        userDAO.save(testUser);
 
         // Add transactions to the account
         Transaction transaction1 = new Expense(LocalDate.now(), BigDecimal.valueOf(10),null, account, testLedger, foodCategory);
         Transaction transaction2 = new Income(LocalDate.now(), BigDecimal.valueOf(1500), null, account, testLedger, salaryCategory);
-        transactionRepository.save(transaction1);
-        transactionRepository.save(transaction2);
+        transactionDAO.save(transaction1);
+        transactionDAO.save(transaction2);
 
         account.addTransaction(transaction1);
         account.addTransaction(transaction2);
@@ -673,10 +674,10 @@ public class AccountTest {
         foodCategory.getTransactions().add(transaction1);
         salaryCategory.getTransactions().add(transaction2);
 
-        accountRepository.save(account);
-        ledgerRepository.save(testLedger);
-        ledgerCategoryRepository.save(foodCategory);
-        ledgerCategoryRepository.save(salaryCategory);
+        accountDAO.save(account);
+        ledgerDAO.save(testLedger);
+        ledgerCategoryDAO.save(foodCategory);
+        ledgerCategoryDAO.save(salaryCategory);
 
         mockMvc.perform(delete("/accounts/" + account.getId())
                         .param("deleteTransactions", "true")
@@ -684,25 +685,25 @@ public class AccountTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string("Account and associated transactions deleted successfully"));
 
-        Account deletedAccount = accountRepository.findById(account.getId()).orElse(null); //cerca account da database
+        Account deletedAccount = accountDAO.findById(account.getId()).orElse(null); //cerca account da database
         Assertions.assertNull(deletedAccount);
 
-        User updatedUser = userRepository.findById(testUser.getId()).orElse(null);
+        User updatedUser = userDAO.findById(testUser.getId()).orElse(null);
         Assertions.assertEquals(0, updatedUser.getTotalAssets().compareTo(BigDecimal.ZERO));
 
-        Ledger updatedLedger = ledgerRepository.findById(testLedger.getId()).orElse(null);
+        Ledger updatedLedger = ledgerDAO.findById(testLedger.getId()).orElse(null);
         Assertions.assertEquals(0, updatedLedger.getTransactions().size());
 
-        Transaction deletedTransaction1 = transactionRepository.findById(transaction1.getId()).orElse(null);
+        Transaction deletedTransaction1 = transactionDAO.findById(transaction1.getId()).orElse(null);
         Assertions.assertNull(deletedTransaction1);
 
-        Transaction deletedTransaction2 = transactionRepository.findById(transaction2.getId()).orElse(null);
+        Transaction deletedTransaction2 = transactionDAO.findById(transaction2.getId()).orElse(null);
         Assertions.assertNull(deletedTransaction2);
 
-        LedgerCategory updatedFoodCategory = ledgerCategoryRepository.findById(foodCategory.getId()).orElse(null);
+        LedgerCategory updatedFoodCategory = ledgerCategoryDAO.findById(foodCategory.getId()).orElse(null);
         Assertions.assertEquals(0, updatedFoodCategory.getTransactions().size());
 
-        LedgerCategory updatedSalaryCategory = ledgerCategoryRepository.findById(salaryCategory.getId()).orElse(null);
+        LedgerCategory updatedSalaryCategory = ledgerCategoryDAO.findById(salaryCategory.getId()).orElse(null);
         Assertions.assertEquals(0, updatedSalaryCategory.getTransactions().size());
     }
 
@@ -717,15 +718,15 @@ public class AccountTest {
                 AccountType.CASH,
                 AccountCategory.FUNDS,
                 testUser);
-        accountRepository.save(account);
+        accountDAO.save(account);
         testUser.getAccounts().add(account);
-        userRepository.save(testUser);
+        userDAO.save(testUser);
 
         // Add transactions to the account
         Transaction transaction1 = new Expense(LocalDate.now(), BigDecimal.valueOf(10),null, account, testLedger, foodCategory);
         Transaction transaction2 = new Income(LocalDate.now(), BigDecimal.valueOf(1500), null, account, testLedger, salaryCategory);
-        transactionRepository.save(transaction1);
-        transactionRepository.save(transaction2);
+        transactionDAO.save(transaction1);
+        transactionDAO.save(transaction2);
 
 
         account.addTransaction(transaction1);
@@ -735,10 +736,10 @@ public class AccountTest {
         foodCategory.getTransactions().add(transaction1);
         salaryCategory.getTransactions().add(transaction2);
 
-        accountRepository.save(account);
-        ledgerRepository.save(testLedger);
-        ledgerCategoryRepository.save(foodCategory);
-        ledgerCategoryRepository.save(salaryCategory);
+        accountDAO.save(account);
+        ledgerDAO.save(testLedger);
+        ledgerCategoryDAO.save(foodCategory);
+        ledgerCategoryDAO.save(salaryCategory);
 
         mockMvc.perform(delete("/accounts/" + account.getId())
                         .param("deleteTransactions", "false")
@@ -746,28 +747,28 @@ public class AccountTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string("Account disassociated from transactions and deleted successfully"));
 
-        Account deletedAccount = accountRepository.findById(account.getId()).orElse(null); //cerca account da database
+        Account deletedAccount = accountDAO.findById(account.getId()).orElse(null); //cerca account da database
         Assertions.assertNull(deletedAccount);
 
-        User updatedUser = userRepository.findById(testUser.getId()).orElse(null);
+        User updatedUser = userDAO.findById(testUser.getId()).orElse(null);
         Assertions.assertEquals(0, updatedUser.getTotalAssets().compareTo(BigDecimal.ZERO));
 
-        Ledger updatedLedger = ledgerRepository.findById(testLedger.getId()).orElse(null);
+        Ledger updatedLedger = ledgerDAO.findById(testLedger.getId()).orElse(null);
         Assertions.assertEquals(2, updatedLedger.getTransactions().size());
 
         Assertions.assertEquals(0, updatedLedger.getTotalIncomeForMonth(YearMonth.now()).compareTo(BigDecimal.valueOf(1500)));
         Assertions.assertEquals(0, updatedLedger.getTotalExpenseForMonth(YearMonth.now()).compareTo(BigDecimal.valueOf(10)));
 
-        Transaction updatedTransaction1 = transactionRepository.findById(transaction1.getId()).orElse(null);
+        Transaction updatedTransaction1 = transactionDAO.findById(transaction1.getId()).orElse(null);
         Assertions.assertNotNull(updatedTransaction1);
 
-        Transaction updatedTransaction2 = transactionRepository.findById(transaction2.getId()).orElse(null);
+        Transaction updatedTransaction2 = transactionDAO.findById(transaction2.getId()).orElse(null);
         Assertions.assertNotNull(updatedTransaction2);
 
-        LedgerCategory updatedFoodCategory = ledgerCategoryRepository.findById(foodCategory.getId()).orElse(null);
+        LedgerCategory updatedFoodCategory = ledgerCategoryDAO.findById(foodCategory.getId()).orElse(null);
         Assertions.assertEquals(1, updatedFoodCategory.getTransactions().size());
 
-        LedgerCategory updatedSalaryCategory = ledgerCategoryRepository.findById(salaryCategory.getId()).orElse(null);
+        LedgerCategory updatedSalaryCategory = ledgerCategoryDAO.findById(salaryCategory.getId()).orElse(null);
         Assertions.assertEquals(1, updatedSalaryCategory.getTransactions().size());
 
     }
@@ -782,13 +783,13 @@ public class AccountTest {
                 true,
                 testUser,
                 LocalDate.now());
-        accountRepository.save(borrowingAccount);
+        accountDAO.save(borrowingAccount);
         testUser.getAccounts().add(borrowingAccount);
 
         Transaction transaction1 = new Expense(LocalDate.now(), BigDecimal.valueOf(10),null, borrowingAccount, testLedger, foodCategory);
         Transaction transaction2 = new Income(LocalDate.now(), BigDecimal.valueOf(1500), null, borrowingAccount, testLedger, salaryCategory);
-        transactionRepository.save(transaction1);
-        transactionRepository.save(transaction2);
+        transactionDAO.save(transaction1);
+        transactionDAO.save(transaction2);
 
         borrowingAccount.addTransaction(transaction1);
         borrowingAccount.addTransaction(transaction2);
@@ -797,10 +798,10 @@ public class AccountTest {
         foodCategory.getTransactions().add(transaction1);
         salaryCategory.getTransactions().add(transaction2);
 
-        accountRepository.save(borrowingAccount);
-        ledgerRepository.save(testLedger);
-        ledgerCategoryRepository.save(foodCategory);
-        ledgerCategoryRepository.save(salaryCategory);
+        accountDAO.save(borrowingAccount);
+        ledgerDAO.save(testLedger);
+        ledgerCategoryDAO.save(foodCategory);
+        ledgerCategoryDAO.save(salaryCategory);
 
         mockMvc.perform(delete("/accounts/" + borrowingAccount.getId())
                         .param("deleteTransactions", "true")
@@ -808,21 +809,21 @@ public class AccountTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string("Account and associated transactions deleted successfully"));
 
-        Account deletedAccount = accountRepository.findById(borrowingAccount.getId()).orElse(null);
+        Account deletedAccount = accountDAO.findById(borrowingAccount.getId()).orElse(null);
         Assertions.assertNull(deletedAccount);
 
-        User updatedUser = userRepository.findById(testUser.getId()).orElse(null);
+        User updatedUser = userDAO.findById(testUser.getId()).orElse(null);
         Assertions.assertEquals(0, updatedUser.getTotalAssets().compareTo(BigDecimal.ZERO));
         Assertions.assertEquals(0, updatedUser.getTotalLiabilities().compareTo(BigDecimal.ZERO));
         Assertions.assertEquals(0, updatedUser.getNetAssets().compareTo(BigDecimal.ZERO));
         Assertions.assertEquals(0, updatedUser.getAccounts().size());
 
-        Ledger updatedLedger = ledgerRepository.findById(testLedger.getId()).orElse(null);
+        Ledger updatedLedger = ledgerDAO.findById(testLedger.getId()).orElse(null);
         Assertions.assertEquals(0, updatedLedger.getTransactions().size());
 
-        LedgerCategory updatedFoodCategory = ledgerCategoryRepository.findById(foodCategory.getId()).orElse(null);
+        LedgerCategory updatedFoodCategory = ledgerCategoryDAO.findById(foodCategory.getId()).orElse(null);
         Assertions.assertEquals(0, updatedFoodCategory.getTransactions().size());
-        LedgerCategory updatedSalaryCategory = ledgerCategoryRepository.findById(salaryCategory.getId()).orElse(null);
+        LedgerCategory updatedSalaryCategory = ledgerCategoryDAO.findById(salaryCategory.getId()).orElse(null);
         Assertions.assertEquals(0, updatedSalaryCategory.getTransactions().size());
     }
 
@@ -836,13 +837,13 @@ public class AccountTest {
                 true,
                 testUser,
                 LocalDate.now());
-        accountRepository.save(borrowingAccount);
+        accountDAO.save(borrowingAccount);
         testUser.getAccounts().add(borrowingAccount);
 
         Transaction transaction1 = new Expense(LocalDate.now(), BigDecimal.valueOf(10),null, borrowingAccount, testLedger, foodCategory);
         Transaction transaction2 = new Income(LocalDate.now(), BigDecimal.valueOf(1500), null, borrowingAccount, testLedger, salaryCategory);
-        transactionRepository.save(transaction1);
-        transactionRepository.save(transaction2);
+        transactionDAO.save(transaction1);
+        transactionDAO.save(transaction2);
 
         borrowingAccount.addTransaction(transaction1);
         borrowingAccount.addTransaction(transaction2);
@@ -851,10 +852,10 @@ public class AccountTest {
         foodCategory.getTransactions().add(transaction1);
         salaryCategory.getTransactions().add(transaction2);
 
-        accountRepository.save(borrowingAccount);
-        ledgerRepository.save(testLedger);
-        ledgerCategoryRepository.save(foodCategory);
-        ledgerCategoryRepository.save(salaryCategory);
+        accountDAO.save(borrowingAccount);
+        ledgerDAO.save(testLedger);
+        ledgerCategoryDAO.save(foodCategory);
+        ledgerCategoryDAO.save(salaryCategory);
 
         mockMvc.perform(delete("/accounts/" + borrowingAccount.getId())
                         .param("deleteTransactions", "false")
@@ -862,23 +863,23 @@ public class AccountTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string("Account disassociated from transactions and deleted successfully"));
 
-        Account deletedAccount = accountRepository.findById(borrowingAccount.getId()).orElse(null);
+        Account deletedAccount = accountDAO.findById(borrowingAccount.getId()).orElse(null);
         Assertions.assertNull(deletedAccount);
 
-        User updatedUser = userRepository.findById(testUser.getId()).orElse(null);
+        User updatedUser = userDAO.findById(testUser.getId()).orElse(null);
         Assertions.assertEquals(0, updatedUser.getTotalAssets().compareTo(BigDecimal.ZERO));
         Assertions.assertEquals(0, updatedUser.getTotalLiabilities().compareTo(BigDecimal.ZERO));
         Assertions.assertEquals(0, updatedUser.getNetAssets().compareTo(BigDecimal.ZERO));
         Assertions.assertEquals(0, updatedUser.getAccounts().size());
 
-        Ledger updatedLedger = ledgerRepository.findById(testLedger.getId()).orElse(null);
+        Ledger updatedLedger = ledgerDAO.findById(testLedger.getId()).orElse(null);
         Assertions.assertEquals(2, updatedLedger.getTransactions().size());
 
-        Assertions.assertEquals(2, transactionRepository.findAll().size());
+        Assertions.assertEquals(2, transactionDAO.findAll().size());
 
-        LedgerCategory updatedFoodCategory = ledgerCategoryRepository.findById(foodCategory.getId()).orElse(null);
+        LedgerCategory updatedFoodCategory = ledgerCategoryDAO.findById(foodCategory.getId()).orElse(null);
         Assertions.assertEquals(1, updatedFoodCategory.getTransactions().size());
-        LedgerCategory updatedSalaryCategory = ledgerCategoryRepository.findById(salaryCategory.getId()).orElse(null);
+        LedgerCategory updatedSalaryCategory = ledgerCategoryDAO.findById(salaryCategory.getId()).orElse(null);
         Assertions.assertEquals(1, updatedSalaryCategory.getTransactions().size());
     }
 
@@ -892,13 +893,13 @@ public class AccountTest {
                 true,
                 testUser,
                 LocalDate.now());
-        accountRepository.save(lendingAccount);
+        accountDAO.save(lendingAccount);
         testUser.getAccounts().add(lendingAccount);
 
         Transaction transaction1 = new Expense(LocalDate.now(), BigDecimal.valueOf(10),null, lendingAccount, testLedger, foodCategory);
         Transaction transaction2 = new Income(LocalDate.now(), BigDecimal.valueOf(1500), null, lendingAccount, testLedger, salaryCategory);
-        transactionRepository.save(transaction1);
-        transactionRepository.save(transaction2);
+        transactionDAO.save(transaction1);
+        transactionDAO.save(transaction2);
 
         lendingAccount.addTransaction(transaction1);
         lendingAccount.addTransaction(transaction2);
@@ -907,10 +908,10 @@ public class AccountTest {
         foodCategory.getTransactions().add(transaction1);
         salaryCategory.getTransactions().add(transaction2);
 
-        accountRepository.save(lendingAccount);
-        ledgerRepository.save(testLedger);
-        ledgerCategoryRepository.save(foodCategory);
-        ledgerCategoryRepository.save(salaryCategory);
+        accountDAO.save(lendingAccount);
+        ledgerDAO.save(testLedger);
+        ledgerCategoryDAO.save(foodCategory);
+        ledgerCategoryDAO.save(salaryCategory);
 
         mockMvc.perform(delete("/accounts/" + lendingAccount.getId())
                         .param("deleteTransactions", "true")
@@ -918,24 +919,24 @@ public class AccountTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string("Account and associated transactions deleted successfully"));
 
-        Account deletedAccount = accountRepository.findById(lendingAccount.getId()).orElse(null);
+        Account deletedAccount = accountDAO.findById(lendingAccount.getId()).orElse(null);
         Assertions.assertNull(deletedAccount);
 
-        User updatedUser = userRepository.findById(testUser.getId()).orElse(null);
+        User updatedUser = userDAO.findById(testUser.getId()).orElse(null);
         Assertions.assertEquals(0, updatedUser.getTotalAssets().compareTo(BigDecimal.ZERO));
         Assertions.assertEquals(0, updatedUser.getTotalLiabilities().compareTo(BigDecimal.ZERO));
         Assertions.assertEquals(0, updatedUser.getNetAssets().compareTo(BigDecimal.ZERO));
         Assertions.assertEquals(0, updatedUser.getAccounts().size());
 
-        Ledger updatedLedger = ledgerRepository.findById(testLedger.getId()).orElse(null);
+        Ledger updatedLedger = ledgerDAO.findById(testLedger.getId()).orElse(null);
         Assertions.assertEquals(0, updatedLedger.getTransactions().size());
 
-        LedgerCategory updatedFoodCategory = ledgerCategoryRepository.findById(foodCategory.getId()).orElse(null);
+        LedgerCategory updatedFoodCategory = ledgerCategoryDAO.findById(foodCategory.getId()).orElse(null);
         Assertions.assertEquals(0, updatedFoodCategory.getTransactions().size());
-        LedgerCategory updatedSalaryCategory = ledgerCategoryRepository.findById(salaryCategory.getId()).orElse(null);
+        LedgerCategory updatedSalaryCategory = ledgerCategoryDAO.findById(salaryCategory.getId()).orElse(null);
         Assertions.assertEquals(0, updatedSalaryCategory.getTransactions().size());
 
-        Assertions.assertEquals(0, transactionRepository.findAll().size());
+        Assertions.assertEquals(0, transactionDAO.findAll().size());
     }
 
     @Test
@@ -948,13 +949,13 @@ public class AccountTest {
                 true,
                 testUser,
                 LocalDate.now());
-        accountRepository.save(lendingAccount);
+        accountDAO.save(lendingAccount);
         testUser.getAccounts().add(lendingAccount);
 
         Transaction transaction1 = new Expense(LocalDate.now(), BigDecimal.valueOf(10),null, lendingAccount, testLedger, foodCategory);
         Transaction transaction2 = new Income(LocalDate.now(), BigDecimal.valueOf(1500), null, lendingAccount, testLedger, salaryCategory);
-        transactionRepository.save(transaction1);
-        transactionRepository.save(transaction2);
+        transactionDAO.save(transaction1);
+        transactionDAO.save(transaction2);
 
         lendingAccount.addTransaction(transaction1);
         lendingAccount.addTransaction(transaction2);
@@ -963,10 +964,10 @@ public class AccountTest {
         foodCategory.getTransactions().add(transaction1);
         salaryCategory.getTransactions().add(transaction2);
 
-        accountRepository.save(lendingAccount);
-        ledgerRepository.save(testLedger);
-        ledgerCategoryRepository.save(foodCategory);
-        ledgerCategoryRepository.save(salaryCategory);
+        accountDAO.save(lendingAccount);
+        ledgerDAO.save(testLedger);
+        ledgerCategoryDAO.save(foodCategory);
+        ledgerCategoryDAO.save(salaryCategory);
 
         mockMvc.perform(delete("/accounts/" + lendingAccount.getId())
                         .param("deleteTransactions", "false")
@@ -974,23 +975,23 @@ public class AccountTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string("Account disassociated from transactions and deleted successfully"));
 
-        Account deletedAccount = accountRepository.findById(lendingAccount.getId()).orElse(null);
+        Account deletedAccount = accountDAO.findById(lendingAccount.getId()).orElse(null);
         Assertions.assertNull(deletedAccount);
 
-        User updatedUser = userRepository.findById(testUser.getId()).orElse(null);
+        User updatedUser = userDAO.findById(testUser.getId()).orElse(null);
         Assertions.assertEquals(0, updatedUser.getTotalAssets().compareTo(BigDecimal.ZERO));
         Assertions.assertEquals(0, updatedUser.getTotalLiabilities().compareTo(BigDecimal.ZERO));
         Assertions.assertEquals(0, updatedUser.getNetAssets().compareTo(BigDecimal.ZERO));
         Assertions.assertEquals(0, updatedUser.getAccounts().size());
 
-        Ledger updatedLedger = ledgerRepository.findById(testLedger.getId()).orElse(null);
+        Ledger updatedLedger = ledgerDAO.findById(testLedger.getId()).orElse(null);
         Assertions.assertEquals(2, updatedLedger.getTransactions().size());
 
-        Assertions.assertEquals(2, transactionRepository.findAll().size());
+        Assertions.assertEquals(2, transactionDAO.findAll().size());
 
-        LedgerCategory updatedFoodCategory = ledgerCategoryRepository.findById(foodCategory.getId()).orElse(null);
+        LedgerCategory updatedFoodCategory = ledgerCategoryDAO.findById(foodCategory.getId()).orElse(null);
         Assertions.assertEquals(1, updatedFoodCategory.getTransactions().size());
-        LedgerCategory updatedSalaryCategory = ledgerCategoryRepository.findById(salaryCategory.getId()).orElse(null);
+        LedgerCategory updatedSalaryCategory = ledgerCategoryDAO.findById(salaryCategory.getId()).orElse(null);
         Assertions.assertEquals(1, updatedSalaryCategory.getTransactions().size());
 
     }
@@ -1008,9 +1009,9 @@ public class AccountTest {
                 AccountType.CASH,
                 AccountCategory.FUNDS,
                 testUser);
-        accountRepository.save(account);
+        accountDAO.save(account);
         testUser.getAccounts().add(account);
-        userRepository.save(testUser);
+        userDAO.save(testUser);
 
         mockMvc.perform(put("/accounts/" + account.getId() + "/hide")
                         .principal(() -> "Alice"))
@@ -1018,10 +1019,10 @@ public class AccountTest {
                 .andExpect(content().string("Account hidden successfully"));
 
 
-        Account updatedAccount = accountRepository.findById(account.getId()).orElse(null);
+        Account updatedAccount = accountDAO.findById(account.getId()).orElse(null);
         Assertions.assertTrue(updatedAccount.getHidden());
 
-        User updatedUser = userRepository.findById(testUser.getId()).orElse(null);
+        User updatedUser = userDAO.findById(testUser.getId()).orElse(null);
         Assertions.assertEquals(0, updatedUser.getTotalAssets().compareTo(BigDecimal.ZERO));
         Assertions.assertEquals(1, updatedUser.getAccounts().size());
 
@@ -1038,19 +1039,19 @@ public class AccountTest {
                 null,
                 AccountType.CREDIT_CARD
         );
-        accountRepository.save(account);
+        accountDAO.save(account);
         testUser.getAccounts().add(account);
-        userRepository.save(testUser);
+        userDAO.save(testUser);
 
         mockMvc.perform(put("/accounts/" + account.getId() + "/hide")
                         .principal(() -> "Alice"))
                 .andExpect(status().isOk())
                 .andExpect(content().string("Account hidden successfully"));
 
-        Account updatedCreditAccount = accountRepository.findById(account.getId()).orElse(null);
+        Account updatedCreditAccount = accountDAO.findById(account.getId()).orElse(null);
         Assertions.assertTrue(updatedCreditAccount.getHidden());
 
-        User updatedCreditUser = userRepository.findById(testUser.getId()).orElse(null);
+        User updatedCreditUser = userDAO.findById(testUser.getId()).orElse(null);
         Assertions.assertEquals(0, updatedCreditUser.getTotalAssets().compareTo(BigDecimal.ZERO));
         Assertions.assertEquals(0, updatedCreditUser.getTotalLiabilities().compareTo(BigDecimal.ZERO));
         Assertions.assertEquals(0, updatedCreditUser.getNetAssets().compareTo(BigDecimal.ZERO));
@@ -1069,18 +1070,18 @@ public class AccountTest {
                 LocalDate.now(),
                 LoanAccount.RepaymentType.EQUAL_INTEREST
         );
-        accountRepository.save(account);
+        accountDAO.save(account);
         testUser.getAccounts().add(account);
-        userRepository.save(testUser);
+        userDAO.save(testUser);
 
         mockMvc.perform(put("/accounts/" + account.getId() + "/hide")
                         .principal(() -> "Alice"))
                 .andExpect(status().isOk())
                 .andExpect(content().string("Account hidden successfully"));
-        Account updatedLoanAccount = accountRepository.findById(account.getId()).orElse(null);
+        Account updatedLoanAccount = accountDAO.findById(account.getId()).orElse(null);
         Assertions.assertTrue(updatedLoanAccount.getHidden());
 
-        User updatedLoanUser = userRepository.findById(testUser.getId()).orElse(null);
+        User updatedLoanUser = userDAO.findById(testUser.getId()).orElse(null);
         Assertions.assertEquals(0, updatedLoanUser.getTotalAssets().compareTo(BigDecimal.ZERO));
         Assertions.assertEquals(0, updatedLoanUser.getTotalLiabilities().compareTo(BigDecimal.ZERO));
         Assertions.assertEquals(0, updatedLoanUser.getNetAssets().compareTo(BigDecimal.ZERO));
@@ -1094,18 +1095,18 @@ public class AccountTest {
                 true,
                 testUser,
                 LocalDate.now());
-        accountRepository.save(account);
+        accountDAO.save(account);
         testUser.getAccounts().add(account);
-        userRepository.save(testUser);
+        userDAO.save(testUser);
 
         mockMvc.perform(put("/accounts/" + account.getId() + "/hide")
                         .principal(() -> "Alice"))
                 .andExpect(status().isOk())
                 .andExpect(content().string("Account hidden successfully"));
-        Account updatedBorrowingAccount = accountRepository.findById(account.getId()).orElse(null);
+        Account updatedBorrowingAccount = accountDAO.findById(account.getId()).orElse(null);
         Assertions.assertTrue(updatedBorrowingAccount.getHidden());
 
-        User updatedBorrowingUser = userRepository.findById(testUser.getId()).orElse(null);
+        User updatedBorrowingUser = userDAO.findById(testUser.getId()).orElse(null);
         Assertions.assertEquals(0, updatedBorrowingUser.getTotalAssets().compareTo(BigDecimal.ZERO));
         Assertions.assertEquals(0, updatedBorrowingUser.getTotalLiabilities().compareTo(BigDecimal.ZERO));
         Assertions.assertEquals(0, updatedBorrowingUser.getNetAssets().compareTo(BigDecimal.ZERO));
@@ -1119,19 +1120,19 @@ public class AccountTest {
                 true,
                 testUser,
                 LocalDate.now());
-        accountRepository.save(account);
+        accountDAO.save(account);
         testUser.getAccounts().add(account);
-        userRepository.save(testUser);
+        userDAO.save(testUser);
 
         mockMvc.perform(put("/accounts/" + account.getId() + "/hide")
                         .principal(() -> "Alice"))
                 .andExpect(status().isOk())
                 .andExpect(content().string("Account hidden successfully"));
 
-        Account updatedLendingAccount = accountRepository.findById(account.getId()).orElse(null);
+        Account updatedLendingAccount = accountDAO.findById(account.getId()).orElse(null);
         Assertions.assertTrue(updatedLendingAccount.getHidden());
 
-        User updatedLendingUser = userRepository.findById(testUser.getId()).orElse(null);
+        User updatedLendingUser = userDAO.findById(testUser.getId()).orElse(null);
         Assertions.assertEquals(0, updatedLendingUser.getTotalAssets().compareTo(BigDecimal.ZERO));
         Assertions.assertEquals(0, updatedLendingUser.getTotalLiabilities().compareTo(BigDecimal.ZERO));
         Assertions.assertEquals(0, updatedLendingUser.getNetAssets().compareTo(BigDecimal.ZERO));
@@ -1149,9 +1150,9 @@ public class AccountTest {
                 AccountType.CASH,
                 AccountCategory.FUNDS,
                 testUser);
-        accountRepository.save(account);
+        accountDAO.save(account);
         testUser.getAccounts().add(account);
-        userRepository.save(testUser);
+        userDAO.save(testUser);
 
         mockMvc.perform(put("/accounts/" + account.getId() + "/edit-basic-account")
                         .param("name", "Updated Account")
@@ -1163,7 +1164,7 @@ public class AccountTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string("Account edited successfully"));
 
-        Account updatedAccount = accountRepository.findById(account.getId()).orElse(null);
+        Account updatedAccount = accountDAO.findById(account.getId()).orElse(null);
         Assertions.assertNotNull(updatedAccount);
 
         Assertions.assertEquals("Updated Account", updatedAccount.getName());
@@ -1176,7 +1177,7 @@ public class AccountTest {
 
         Assertions.assertFalse(updatedAccount.getSelectable());
 
-        User updatedUser = userRepository.findById(testUser.getId()).orElse(null);
+        User updatedUser = userDAO.findById(testUser.getId()).orElse(null);
         Assertions.assertEquals(0, updatedUser.getTotalAssets().compareTo(BigDecimal.ZERO));
 
     }
@@ -1196,9 +1197,9 @@ public class AccountTest {
                 null,
                 AccountType.CREDIT_CARD
         );
-        accountRepository.save(account);
+        accountDAO.save(account);
         testUser.getAccounts().add(account);
-        userRepository.save(testUser);
+        userDAO.save(testUser);
 
         mockMvc.perform(put("/accounts/" + account.getId() + "/edit-credit-account")
                         .param("name", "Updated Account")
@@ -1214,7 +1215,7 @@ public class AccountTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string("Credit account edited successfully"));
 
-        Account updatedAccount = accountRepository.findById(account.getId()).orElse(null);
+        Account updatedAccount = accountDAO.findById(account.getId()).orElse(null);
         Assertions.assertNotNull(updatedAccount);
 
         Assertions.assertEquals(0, ((CreditAccount) updatedAccount).getCreditLimit().compareTo(BigDecimal.valueOf(900)));
@@ -1235,7 +1236,7 @@ public class AccountTest {
 
         Assertions.assertFalse(updatedAccount.getSelectable());
 
-        User updatedUser = userRepository.findById(testUser.getId()).orElse(null);
+        User updatedUser = userDAO.findById(testUser.getId()).orElse(null);
         Assertions.assertEquals(0, updatedUser.getTotalAssets().compareTo(BigDecimal.valueOf(1500)));
         Assertions.assertEquals(0, updatedUser.getTotalLiabilities().compareTo(BigDecimal.valueOf(10)));
         Assertions.assertEquals(0, updatedUser.getNetAssets().compareTo(BigDecimal.valueOf(1490)));
@@ -1256,9 +1257,9 @@ public class AccountTest {
                 LocalDate.now(),
                 LoanAccount.RepaymentType.EQUAL_INTEREST
         );
-        accountRepository.save(account);
+        accountDAO.save(account);
         testUser.getAccounts().add(account);
-        userRepository.save(testUser);
+        userDAO.save(testUser);
 
         mockMvc.perform(put("/accounts/" + account.getId() + "/edit-loan-account")
                         .param("name", "Updated Account")
@@ -1275,7 +1276,7 @@ public class AccountTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string("Loan account edited successfully"));
 
-        Account updatedAccount = accountRepository.findById(account.getId()).orElse(null);
+        Account updatedAccount = accountDAO.findById(account.getId()).orElse(null);
         Assertions.assertEquals(0, ((LoanAccount) updatedAccount).getRemainingAmount().compareTo(BigDecimal.valueOf(98.70)));
 
         Assertions.assertEquals(1, ((LoanAccount) updatedAccount).getRepaidPeriods());
@@ -1290,7 +1291,7 @@ public class AccountTest {
 
         Assertions.assertFalse(updatedAccount.getSelectable());
 
-        User updatedUser = userRepository.findById(testUser.getId()).orElse(null);
+        User updatedUser = userDAO.findById(testUser.getId()).orElse(null);
         Assertions.assertEquals(0, updatedUser.getTotalAssets().compareTo(BigDecimal.ZERO));
         Assertions.assertEquals(0, updatedUser.getTotalLiabilities().compareTo(BigDecimal.valueOf(98.70)));
         Assertions.assertEquals(0, updatedUser.getNetAssets().compareTo(BigDecimal.valueOf(-98.70)));
@@ -1307,9 +1308,9 @@ public class AccountTest {
                 testUser,
                 LocalDate.now()
         );
-        accountRepository.save(account);
+        accountDAO.save(account);
         testUser.getAccounts().add(account);
-        userRepository.save(testUser);
+        userDAO.save(testUser);
 
         mockMvc.perform(put("/accounts/" + account.getId() + "/edit-borrowing-account")
                         .param("name", "Updated Account")
@@ -1320,14 +1321,14 @@ public class AccountTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string("Borrowing account updated successfully"));
 
-        Account updatedAccount = accountRepository.findById(account.getId()).orElse(null);
+        Account updatedAccount = accountDAO.findById(account.getId()).orElse(null);
         Assertions.assertEquals(0, updatedAccount.getBalance().compareTo(BigDecimal.valueOf(1000)));
         Assertions.assertEquals("Updated Account", updatedAccount.getName());
         Assertions.assertEquals("Updated note", updatedAccount.getNotes());
         Assertions.assertTrue(updatedAccount.getIncludedInNetAsset());
         Assertions.assertFalse(updatedAccount.getSelectable());
 
-        User updatedUser = userRepository.findById(testUser.getId()).orElse(null);
+        User updatedUser = userDAO.findById(testUser.getId()).orElse(null);
         Assertions.assertEquals(0, updatedUser.getTotalAssets().intValue());
         Assertions.assertEquals(0, updatedUser.getTotalLiabilities().compareTo(BigDecimal.valueOf(1000)));
         Assertions.assertEquals(0, updatedUser.getNetAssets().compareTo(BigDecimal.valueOf(-1000)));
@@ -1344,9 +1345,9 @@ public class AccountTest {
                 testUser,
                 LocalDate.now()
         );
-        accountRepository.save(account);
+        accountDAO.save(account);
         testUser.getAccounts().add(account);
-        userRepository.save(testUser);
+        userDAO.save(testUser);
 
         mockMvc.perform(put("/accounts/" + account.getId() + "/edit-lending-account")
                         .param("name", "Bob")
@@ -1357,14 +1358,14 @@ public class AccountTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string("LendingAccount updated successfully"));
 
-        Account updatedAccount = accountRepository.findById(account.getId()).orElse(null);
+        Account updatedAccount = accountDAO.findById(account.getId()).orElse(null);
         Assertions.assertEquals(0, updatedAccount.getBalance().compareTo(BigDecimal.valueOf(1000)));
         Assertions.assertEquals("Bob", updatedAccount.getName());
         Assertions.assertEquals("Updated note", updatedAccount.getNotes());
         Assertions.assertTrue(updatedAccount.getIncludedInNetAsset());
         Assertions.assertFalse(updatedAccount.getSelectable());
 
-        User updatedUser = userRepository.findById(testUser.getId()).orElse(null);
+        User updatedUser = userDAO.findById(testUser.getId()).orElse(null);
         Assertions.assertEquals(0, updatedUser.getTotalAssets().compareTo(BigDecimal.valueOf(1000)));
         Assertions.assertEquals(0, updatedUser.getTotalLiabilities().intValue());
         Assertions.assertEquals(0, updatedUser.getNetAssets().compareTo(BigDecimal.valueOf(1000)));
@@ -1384,9 +1385,9 @@ public class AccountTest {
                 AccountType.CASH,
                 AccountCategory.FUNDS,
                 testUser);
-        accountRepository.save(basicAccount);
+        accountDAO.save(basicAccount);
         testUser.getAccounts().add(basicAccount);
-        userRepository.save(testUser);
+        userDAO.save(testUser);
 
         mockMvc.perform(put("/accounts/" + basicAccount.getId() + "/credit")
                         .param("amount", "10")
@@ -1394,11 +1395,11 @@ public class AccountTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string("credit account"));
 
-        Account updateAccount=accountRepository.findByName("account1");
+        Account updateAccount= accountDAO.findByName("account1");
         Assertions.assertNotNull(updateAccount);
         Assertions.assertEquals(0, updateAccount.getBalance().compareTo(BigDecimal.valueOf(1010)));
 
-        User updateUser=userRepository.findById(testUser.getId()).orElse(null);
+        User updateUser= userDAO.findById(testUser.getId()).orElse(null);
         Assertions.assertEquals(0, updateUser.getTotalAssets().compareTo(BigDecimal.valueOf(1010)));
 
 
@@ -1415,9 +1416,9 @@ public class AccountTest {
                 null,
                 AccountType.CREDIT_CARD
         );
-        accountRepository.save(creditAccount);
+        accountDAO.save(creditAccount);
         testUser.getAccounts().add(creditAccount);
-        userRepository.save(testUser);
+        userDAO.save(testUser);
 
         mockMvc.perform(put("/accounts/" + creditAccount.getId() + "/credit")
                         .param("amount", "10")
@@ -1425,11 +1426,11 @@ public class AccountTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string("credit account"));
 
-        Account updateAccount2=accountRepository.findByName("account2");
+        Account updateAccount2= accountDAO.findByName("account2");
         Assertions.assertNotNull(updateAccount2);
         Assertions.assertEquals(0, updateAccount2.getBalance().compareTo(BigDecimal.valueOf(1010)));
 
-        User updateUser1=userRepository.findById(testUser.getId()).orElse(null);
+        User updateUser1= userDAO.findById(testUser.getId()).orElse(null);
         Assertions.assertEquals(0, updateUser1.getTotalAssets().compareTo(BigDecimal.valueOf(2020)));
 
         //test credit LoanAccount
@@ -1445,9 +1446,9 @@ public class AccountTest {
                 LocalDate.now(),
                 LoanAccount.RepaymentType.EQUAL_INTEREST
         );
-        accountRepository.save(loanAccount);
+        accountDAO.save(loanAccount);
         testUser.getAccounts().add(loanAccount);
-        userRepository.save(testUser);
+        userDAO.save(testUser);
 
         mockMvc.perform(put("/accounts/" + loanAccount.getId() + "/credit")
                         .param("amount", "10")
@@ -1455,7 +1456,7 @@ public class AccountTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(content().string("Cannot credit a loan account"));
 
-        User updateUser2=userRepository.findById(testUser.getId()).orElse(null);
+        User updateUser2= userDAO.findById(testUser.getId()).orElse(null);
         Assertions.assertEquals(0, updateUser2.getTotalAssets().compareTo(BigDecimal.valueOf(2020)));
         Assertions.assertEquals(0, updateUser2.getTotalLiabilities().compareTo(BigDecimal.valueOf(100)));
         Assertions.assertEquals(0, updateUser2.getNetAssets().compareTo(BigDecimal.valueOf(1920)));
@@ -1469,9 +1470,9 @@ public class AccountTest {
                 testUser,
                 LocalDate.now()
         );
-        accountRepository.save(borrowingAccount);
+        accountDAO.save(borrowingAccount);
         testUser.getAccounts().add(borrowingAccount);
-        userRepository.save(testUser);
+        userDAO.save(testUser);
 
         mockMvc.perform(put("/accounts/" + borrowingAccount.getId() + "/credit")
                         .param("amount", "10")
@@ -1479,10 +1480,10 @@ public class AccountTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string("credit account"));
 
-        Account updateAccount4=accountRepository.findByName("account4");
+        Account updateAccount4= accountDAO.findByName("account4");
         Assertions.assertEquals(0, updateAccount4.getBalance().compareTo(BigDecimal.valueOf(90)));
 
-        User updateUser3=userRepository.findById(testUser.getId()).orElse(null);
+        User updateUser3= userDAO.findById(testUser.getId()).orElse(null);
         Assertions.assertEquals(0, updateUser3.getTotalAssets().compareTo(BigDecimal.valueOf(2020)));
         Assertions.assertEquals(0, updateUser3.getTotalLiabilities().compareTo(BigDecimal.valueOf(190)));
         Assertions.assertEquals(0, updateUser3.getNetAssets().compareTo(BigDecimal.valueOf(1830)));
@@ -1496,9 +1497,9 @@ public class AccountTest {
                 testUser,
                 LocalDate.now()
         );
-        accountRepository.save(lendingAccount);
+        accountDAO.save(lendingAccount);
         testUser.getAccounts().add(lendingAccount);
-        userRepository.save(testUser);
+        userDAO.save(testUser);
 
         mockMvc.perform(put("/accounts/" + lendingAccount.getId() + "/credit")
                         .param("amount", "10")
@@ -1506,10 +1507,10 @@ public class AccountTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string("credit account"));
 
-        Account updateAccount5=accountRepository.findByName("account5");
+        Account updateAccount5= accountDAO.findByName("account5");
         Assertions.assertEquals(0, updateAccount5.getBalance().compareTo(BigDecimal.valueOf(110)));
 
-        User updateUser4=userRepository.findById(testUser.getId()).orElse(null);
+        User updateUser4= userDAO.findById(testUser.getId()).orElse(null);
         Assertions.assertEquals(0, updateUser4.getTotalAssets().compareTo(BigDecimal.valueOf(2130)));
         Assertions.assertEquals(0, updateUser4.getTotalLiabilities().compareTo(BigDecimal.valueOf(190)));
         Assertions.assertEquals(0, updateUser4.getNetAssets().compareTo(BigDecimal.valueOf(1940)));
@@ -1527,9 +1528,9 @@ public class AccountTest {
                 AccountType.CASH,
                 AccountCategory.FUNDS,
                 testUser);
-        accountRepository.save(basicAccount);
+        accountDAO.save(basicAccount);
         testUser.getAccounts().add(basicAccount);
-        userRepository.save(testUser);
+        userDAO.save(testUser);
 
         mockMvc.perform(put("/accounts/" + basicAccount.getId() + "/debit")
                         .param("amount", "10")
@@ -1537,10 +1538,10 @@ public class AccountTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string("debit account"));
 
-        Account updateAccount=accountRepository.findByName("account1");
+        Account updateAccount= accountDAO.findByName("account1");
         Assertions.assertEquals(0, updateAccount.getBalance().compareTo(BigDecimal.valueOf(990)));
 
-        User updateUser=userRepository.findById(testUser.getId()).orElse(null);
+        User updateUser= userDAO.findById(testUser.getId()).orElse(null);
         Assertions.assertEquals(0, updateUser.getTotalAssets().compareTo(BigDecimal.valueOf(990)));
 
         //test credit CreditAccount with balance=0
@@ -1556,9 +1557,9 @@ public class AccountTest {
                 null,
                 AccountType.CREDIT_CARD
         );
-        accountRepository.save(creditAccount);
+        accountDAO.save(creditAccount);
         testUser.getAccounts().add(creditAccount);
-        userRepository.save(testUser);
+        userDAO.save(testUser);
 
         mockMvc.perform(put("/accounts/" + creditAccount.getId() + "/debit")
                         .param("amount", "10")
@@ -1566,11 +1567,11 @@ public class AccountTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string("debit account"));
 
-        Account updateAccount2=accountRepository.findByName("account2");
+        Account updateAccount2= accountDAO.findByName("account2");
         Assertions.assertEquals(0, updateAccount2.getBalance().compareTo(BigDecimal.ZERO));
         Assertions.assertEquals(0, ((CreditAccount)updateAccount2).getCurrentDebt().compareTo(BigDecimal.valueOf(10)));
 
-        User updateUser1=userRepository.findById(testUser.getId()).orElse(null);
+        User updateUser1= userDAO.findById(testUser.getId()).orElse(null);
         Assertions.assertEquals(0, updateUser1.getTotalAssets().compareTo(BigDecimal.valueOf(990)));
         Assertions.assertEquals(0, updateUser1.getTotalLiabilities().compareTo(BigDecimal.valueOf(10)));
         Assertions.assertEquals(0, updateUser1.getNetAssets().compareTo(BigDecimal.valueOf(980)));
@@ -1588,9 +1589,9 @@ public class AccountTest {
                 LocalDate.now(),
                 LoanAccount.RepaymentType.EQUAL_INTEREST
         );
-        accountRepository.save(loanAccount);
+        accountDAO.save(loanAccount);
         testUser.getAccounts().add(loanAccount);
-        userRepository.save(testUser);
+        userDAO.save(testUser);
 
         mockMvc.perform(put("/accounts/" + loanAccount.getId() + "/debit")
                         .param("amount", "10")
@@ -1607,9 +1608,9 @@ public class AccountTest {
                 testUser,
                 LocalDate.now()
         );
-        accountRepository.save(borrowingAccount);
+        accountDAO.save(borrowingAccount);
         testUser.getAccounts().add(borrowingAccount);
-        userRepository.save(testUser);
+        userDAO.save(testUser);
 
         mockMvc.perform(put("/accounts/" + borrowingAccount.getId() + "/debit")
                         .param("amount", "10")
@@ -1617,10 +1618,10 @@ public class AccountTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string("debit account"));
 
-        Account updateAccount4=accountRepository.findByName("account4");
+        Account updateAccount4= accountDAO.findByName("account4");
         Assertions.assertEquals(0, updateAccount4.getBalance().compareTo(BigDecimal.valueOf(110)));
 
-        User updateUser2=userRepository.findById(testUser.getId()).orElse(null);
+        User updateUser2= userDAO.findById(testUser.getId()).orElse(null);
         Assertions.assertEquals(0, updateUser2.getTotalAssets().compareTo(BigDecimal.valueOf(990)));
         Assertions.assertEquals(0, updateUser2.getTotalLiabilities().compareTo(BigDecimal.valueOf(220)));
         Assertions.assertEquals(0, updateUser2.getNetAssets().compareTo(BigDecimal.valueOf(770)));
@@ -1634,9 +1635,9 @@ public class AccountTest {
                 testUser,
                 LocalDate.now()
         );
-        accountRepository.save(lendingAccount);
+        accountDAO.save(lendingAccount);
         testUser.getAccounts().add(lendingAccount);
-        userRepository.save(testUser);
+        userDAO.save(testUser);
 
         mockMvc.perform(put("/accounts/" + lendingAccount.getId() + "/debit")
                         .param("amount", "10")
@@ -1644,10 +1645,10 @@ public class AccountTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string("debit account"));
 
-        Account updateAccount5=accountRepository.findByName("account5");
+        Account updateAccount5= accountDAO.findByName("account5");
         Assertions.assertEquals(0, updateAccount5.getBalance().compareTo(BigDecimal.valueOf(90)));
 
-        User updateUser3=userRepository.findById(testUser.getId()).orElse(null);
+        User updateUser3= userDAO.findById(testUser.getId()).orElse(null);
         Assertions.assertEquals(0, updateUser3.getTotalAssets().compareTo(BigDecimal.valueOf(1080)));
         Assertions.assertEquals(0, updateUser3.getTotalLiabilities().compareTo(BigDecimal.valueOf(220)));
         Assertions.assertEquals(0, updateUser3.getNetAssets().compareTo(BigDecimal.valueOf(860)));
@@ -1669,7 +1670,7 @@ public class AccountTest {
                 null,
                 AccountType.CREDIT_CARD
         );
-        accountRepository.save(creditAccount);
+        accountDAO.save(creditAccount);
         testUser.getAccounts().add(creditAccount);
 
         Account fromAccount = new BasicAccount("from account",
@@ -1680,9 +1681,9 @@ public class AccountTest {
                 AccountType.CASH,
                 AccountCategory.FUNDS,
                 testUser);
-        accountRepository.save(fromAccount);
+        accountDAO.save(fromAccount);
         testUser.getAccounts().add(fromAccount);
-        userRepository.save(testUser);
+        userDAO.save(testUser);
 
         //test repayDebt without ledger
         mockMvc.perform(put("/accounts/" + creditAccount.getId() + "/repay-debt")
@@ -1692,16 +1693,16 @@ public class AccountTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string("Debt repaid successfully"));
 
-        Account updateCreditAccount=accountRepository.findByName("account2");
+        Account updateCreditAccount= accountDAO.findByName("account2");
         Assertions.assertNotNull(updateCreditAccount);
         Assertions.assertEquals(0, ((CreditAccount)updateCreditAccount).getCurrentDebt().compareTo(BigDecimal.valueOf(50)));
         Assertions.assertEquals(1, updateCreditAccount.getTransactions().size());
 
-        Account updateFromAccount=accountRepository.findByName("from account");
+        Account updateFromAccount= accountDAO.findByName("from account");
         Assertions.assertEquals(0, updateFromAccount.getBalance().compareTo(BigDecimal.valueOf(150)));
         Assertions.assertEquals(1, updateFromAccount.getTransactions().size());
 
-        User updateUser=userRepository.findById(testUser.getId()).orElse(null);
+        User updateUser= userDAO.findById(testUser.getId()).orElse(null);
         Assertions.assertEquals(0, updateUser.getTotalAssets().compareTo(BigDecimal.valueOf(1150)));
         Assertions.assertEquals(0, updateUser.getTotalLiabilities().compareTo(BigDecimal.valueOf(50)));
         Assertions.assertEquals(0, updateUser.getNetAssets().compareTo(BigDecimal.valueOf(1100)));
@@ -1724,7 +1725,7 @@ public class AccountTest {
                 LocalDate.now(),
                 LoanAccount.RepaymentType.EQUAL_INTEREST
         );
-        accountRepository.save(loanAccount);
+        accountDAO.save(loanAccount);
         testUser.getAccounts().add(loanAccount);
 
         Account fromAccount = new BasicAccount("from account",
@@ -1735,9 +1736,9 @@ public class AccountTest {
                 AccountType.CASH,
                 AccountCategory.FUNDS,
                 testUser);
-        accountRepository.save(fromAccount);
+        accountDAO.save(fromAccount);
         testUser.getAccounts().add(fromAccount);
-        userRepository.save(testUser);
+        userDAO.save(testUser);
 
         //repayloan with no specific amount
         mockMvc.perform(put("/accounts/" + loanAccount.getId() + "/repay-loan")
@@ -1747,24 +1748,24 @@ public class AccountTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string("Loan repaid successfully"));
 
-        Account updateLoanAccount=accountRepository.findByName("account2");
+        Account updateLoanAccount= accountDAO.findByName("account2");
         Assertions.assertEquals(2, ((LoanAccount)updateLoanAccount).getRepaidPeriods());
         Assertions.assertEquals(0, ((LoanAccount)updateLoanAccount).getRemainingAmount().compareTo(BigDecimal.valueOf(95.88)));
         Assertions.assertEquals(1, updateLoanAccount.getTransactions().size());
 
-        Account updateFromAccount=accountRepository.findByName("from account");
+        Account updateFromAccount= accountDAO.findByName("from account");
         Assertions.assertEquals(0, updateFromAccount.getBalance().compareTo(BigDecimal.valueOf(1997.18)));
         Assertions.assertEquals(1, updateFromAccount.getTransactions().size());
 
-        User updateUser=userRepository.findById(testUser.getId()).orElse(null);
+        User updateUser= userDAO.findById(testUser.getId()).orElse(null);
         Assertions.assertEquals(0, updateUser.getTotalAssets().compareTo(BigDecimal.valueOf(1997.18)));
         Assertions.assertEquals(0, updateUser.getTotalLiabilities().compareTo(BigDecimal.valueOf(95.88)));
         Assertions.assertEquals(0, updateUser.getNetAssets().compareTo(BigDecimal.valueOf(1901.30)));
 
-        Ledger updateLedger=ledgerRepository.findById(testLedger.getId()).orElse(null);
+        Ledger updateLedger= ledgerDAO.findById(testLedger.getId()).orElse(null);
         Assertions.assertEquals(1, updateLedger.getTransactions().size());
 
-        Assertions.assertEquals(1, transactionRepository.findAll().size());
+        Assertions.assertEquals(1, transactionDAO.findAll().size());
 
         //repayLoan with specific amount
         mockMvc.perform(put("/accounts/" + loanAccount.getId() + "/repay-loan")
@@ -1775,17 +1776,17 @@ public class AccountTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string("Loan repaid successfully"));
 
-        Account updateLoanAccount2=accountRepository.findByName("account2");
+        Account updateLoanAccount2= accountDAO.findByName("account2");
         Assertions.assertEquals(12, ((LoanAccount)updateLoanAccount2).getRepaidPeriods());
         Assertions.assertEquals(0, ((LoanAccount)updateLoanAccount2).getRemainingAmount().compareTo(BigDecimal.valueOf(67.38)));
         Assertions.assertEquals(2, updateLoanAccount2.getTransactions().size());
 
 
-        Account updateFromAccount2=accountRepository.findByName("from account");
+        Account updateFromAccount2= accountDAO.findByName("from account");
         Assertions.assertEquals(0, updateFromAccount2.getBalance().compareTo(BigDecimal.valueOf(1968.68)));
         Assertions.assertEquals(2, updateFromAccount2.getTransactions().size());
 
-        User updateUser2=userRepository.findById(testUser.getId()).orElse(null);
+        User updateUser2= userDAO.findById(testUser.getId()).orElse(null);
         Assertions.assertEquals(0, updateUser2.getTotalAssets().compareTo(BigDecimal.valueOf(1968.68)));
         Assertions.assertEquals(0, updateUser2.getTotalLiabilities().compareTo(BigDecimal.valueOf(67.38)));
         Assertions.assertEquals(0, updateUser2.getNetAssets().compareTo(BigDecimal.valueOf(1901.30)));
@@ -1799,16 +1800,16 @@ public class AccountTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string("Loan repaid successfully"));
 
-        Account updateLoanAccount3=accountRepository.findByName("account2");
+        Account updateLoanAccount3= accountDAO.findByName("account2");
         Assertions.assertEquals(33, ((LoanAccount)updateLoanAccount3).getRepaidPeriods());
         Assertions.assertEquals(0, ((LoanAccount)updateLoanAccount3).getRemainingAmount().compareTo(BigDecimal.valueOf(7.38)));
         Assertions.assertEquals(3, updateLoanAccount3.getTransactions().size());
 
-        Account updateFromAccount3=accountRepository.findByName("from account");
+        Account updateFromAccount3= accountDAO.findByName("from account");
         Assertions.assertEquals(0, updateFromAccount3.getBalance().compareTo(BigDecimal.valueOf(1968.68)));
         Assertions.assertEquals(2, updateFromAccount3.getTransactions().size());
 
-        User updateUser3=userRepository.findById(testUser.getId()).orElse(null);
+        User updateUser3= userDAO.findById(testUser.getId()).orElse(null);
         Assertions.assertEquals(0, updateUser3.getTotalAssets().compareTo(BigDecimal.valueOf(1968.68)));
         Assertions.assertEquals(0, updateUser3.getTotalLiabilities().compareTo(BigDecimal.valueOf(7.38)));
         Assertions.assertEquals(0, updateUser3.getNetAssets().compareTo(BigDecimal.valueOf(1961.30)));
@@ -1828,7 +1829,7 @@ public class AccountTest {
                 testUser,
                 LocalDate.now()
         );
-        accountRepository.save(borrowingAccount);
+        accountDAO.save(borrowingAccount);
         testUser.getAccounts().add(borrowingAccount);
 
         Account fromAccount = new BasicAccount("from account",
@@ -1839,9 +1840,9 @@ public class AccountTest {
                 AccountType.CASH,
                 AccountCategory.FUNDS,
                 testUser);
-        accountRepository.save(fromAccount);
+        accountDAO.save(fromAccount);
         testUser.getAccounts().add(fromAccount);
-        userRepository.save(testUser);
+        userDAO.save(testUser);
 
         mockMvc.perform(put("/accounts/" + borrowingAccount.getId() + "/repay-borrowing")
                         .param("amount", "50")
@@ -1851,26 +1852,26 @@ public class AccountTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string("Repayment successful"));
 
-        Account updateBorrowingAccount=accountRepository.findById(borrowingAccount.getId()).orElse(null);
+        Account updateBorrowingAccount= accountDAO.findById(borrowingAccount.getId()).orElse(null);
         Assertions.assertEquals(0, updateBorrowingAccount.getBalance().compareTo(BigDecimal.valueOf(50)));
         Assertions.assertEquals(1, updateBorrowingAccount.getTransactions().size());
         Assertions.assertEquals(1, updateBorrowingAccount.getIncomingTransactions().size());
 
-        Account updateFromAccount=accountRepository.findById(fromAccount.getId()).orElse(null);
+        Account updateFromAccount= accountDAO.findById(fromAccount.getId()).orElse(null);
         Assertions.assertEquals(0, updateFromAccount.getBalance().compareTo(BigDecimal.valueOf(150)));
         Assertions.assertEquals(1, updateFromAccount.getTransactions().size());
         Assertions.assertEquals(1, updateFromAccount.getOutgoingTransactions().size());
 
-        User updateUser=userRepository.findById(testUser.getId()).orElse(null);
+        User updateUser= userDAO.findById(testUser.getId()).orElse(null);
         Assertions.assertEquals(0, updateUser.getTotalAssets().compareTo(BigDecimal.valueOf(150)));
         Assertions.assertEquals(0, updateUser.getTotalLiabilities().compareTo(BigDecimal.valueOf(50)));
         Assertions.assertEquals(0, updateUser.getNetAssets().compareTo(BigDecimal.valueOf(100)));
         Assertions.assertEquals(2, updateUser.getAccounts().size());
 
-        Ledger updateLedger=ledgerRepository.findById(testLedger.getId()).orElse(null);
+        Ledger updateLedger= ledgerDAO.findById(testLedger.getId()).orElse(null);
         Assertions.assertEquals(1, updateLedger.getTransactions().size());
 
-        Assertions.assertEquals(1, transactionRepository.findAll().size());
+        Assertions.assertEquals(1, transactionDAO.findAll().size());
     }
 
     @Test
@@ -1885,7 +1886,7 @@ public class AccountTest {
                 testUser,
                 LocalDate.now()
         );
-        accountRepository.save(lendingAccount);
+        accountDAO.save(lendingAccount);
         testUser.getAccounts().add(lendingAccount);
 
         Account toAccount = new BasicAccount("to account",
@@ -1896,9 +1897,9 @@ public class AccountTest {
                 AccountType.CASH,
                 AccountCategory.FUNDS,
                 testUser);
-        accountRepository.save(toAccount);
+        accountDAO.save(toAccount);
         testUser.getAccounts().add(toAccount);
-        userRepository.save(testUser);
+        userDAO.save(testUser);
 
         mockMvc.perform(put("/accounts/" + lendingAccount.getId() + "/receive-lending")
                         .param("amount", "50")
@@ -1908,25 +1909,25 @@ public class AccountTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string("Lending received successfully"));
 
-        Account updateLendingAccount=accountRepository.findById(lendingAccount.getId()).orElse(null);
+        Account updateLendingAccount= accountDAO.findById(lendingAccount.getId()).orElse(null);
         Assertions.assertEquals(0, updateLendingAccount.getBalance().compareTo(BigDecimal.valueOf(50)));
         Assertions.assertEquals(1, updateLendingAccount.getTransactions().size());
         Assertions.assertEquals(1, updateLendingAccount.getOutgoingTransactions().size());
 
-        Account updateToAccount=accountRepository.findById(toAccount.getId()).orElse(null);
+        Account updateToAccount= accountDAO.findById(toAccount.getId()).orElse(null);
         Assertions.assertEquals(0, updateToAccount.getBalance().compareTo(BigDecimal.valueOf(250)));
         Assertions.assertEquals(1, updateToAccount.getTransactions().size());
         Assertions.assertEquals(1, updateToAccount.getIncomingTransactions().size());
 
-        User updateUser=userRepository.findById(testUser.getId()).orElse(null);
+        User updateUser= userDAO.findById(testUser.getId()).orElse(null);
         Assertions.assertEquals(0, updateUser.getTotalAssets().compareTo(BigDecimal.valueOf(300)));
         Assertions.assertEquals(0, updateUser.getNetAssets().compareTo(BigDecimal.valueOf(300)));
         Assertions.assertEquals(2, updateUser.getAccounts().size());
 
-        Ledger updateLedger=ledgerRepository.findById(testLedger.getId()).orElse(null);
+        Ledger updateLedger= ledgerDAO.findById(testLedger.getId()).orElse(null);
         Assertions.assertEquals(1, updateLedger.getTransactions().size());
 
-        Assertions.assertEquals(1, transactionRepository.findAll().size());
+        Assertions.assertEquals(1, transactionDAO.findAll().size());
     }
 
 
@@ -1941,7 +1942,7 @@ public class AccountTest {
                 AccountType.CASH,
                 AccountCategory.FUNDS,
                 testUser);
-        accountRepository.save(account1);
+        accountDAO.save(account1);
         testUser.getAccounts().add(account1);
 
         Account account2 = new CreditAccount("Credit Card",
@@ -1955,13 +1956,14 @@ public class AccountTest {
                 null,
                 null,
                 AccountType.CREDIT_CARD);
-        accountRepository.save(account2);
+        accountDAO.save(account2);
         testUser.getAccounts().add(account2);
-        userRepository.save(testUser);
+        userDAO.save(testUser);
 
         mockMvc.perform(get("/accounts/all-accounts")
                         .principal(() -> "Alice"))
                 .andExpect(status().isOk())
+                .andDo(print())
                 .andExpect(jsonPath("$", hasSize(2)))
                 .andExpect(jsonPath("$[0].name").value("Cash Account"))
                 .andExpect(jsonPath("$[0].balance").value(1000))
@@ -1980,7 +1982,7 @@ public class AccountTest {
                 AccountType.CASH,
                 AccountCategory.FUNDS,
                 testUser);
-        accountRepository.save(account1);
+        accountDAO.save(account1);
         testUser.getAccounts().add(account1);
 
         Account account2 = new BasicAccount("Hidden Account",
@@ -1991,14 +1993,15 @@ public class AccountTest {
                 AccountType.CASH,
                 AccountCategory.FUNDS,
                 testUser);
-        accountRepository.save(account2);
+        accountDAO.save(account2);
         testUser.getAccounts().add(account2);
         account2.hide();
-        userRepository.save(testUser);
+        userDAO.save(testUser);
 
         mockMvc.perform(get("/accounts/all-accounts")
                         .principal(() -> "Alice"))
                 .andExpect(status().isOk())
+                .andDo(print())
                 .andExpect(jsonPath("$", hasSize(1)))
                 .andExpect(jsonPath("$[0].name").value("Visible Account"))
                 .andExpect(jsonPath("$[0].balance").value(1000));
@@ -2016,7 +2019,7 @@ public class AccountTest {
                 AccountType.CASH,
                 AccountCategory.FUNDS,
                 testUser);
-        accountRepository.save(account1);
+        accountDAO.save(account1);
         testUser.getAccounts().add(account1);
 
         Account account2 = new CreditAccount("Credit Card",
@@ -2030,9 +2033,9 @@ public class AccountTest {
                 null,
                 null,
                 AccountType.CREDIT_CARD);
-        accountRepository.save(account2);
+        accountDAO.save(account2);
         testUser.getAccounts().add(account2);
-        userRepository.save(testUser);
+        userDAO.save(testUser);
 
         Transaction tx1 = new Transfer(LocalDate.of(2025, 10, 5),
                 null,
@@ -2041,7 +2044,7 @@ public class AccountTest {
                 BigDecimal.valueOf(100),
                 testLedger
         );
-        transactionRepository.save(tx1);
+        transactionDAO.save(tx1);
         account1.addTransaction(tx1);
         account2.addTransaction(tx1);
         testLedger.getTransactions().add(tx1);
@@ -2053,14 +2056,14 @@ public class AccountTest {
                 BigDecimal.valueOf(50),
                 testLedger
         );
-        transactionRepository.save(tx2);
+        transactionDAO.save(tx2);
         account1.addTransaction(tx2);
         account2.addTransaction(tx2);
         testLedger.getTransactions().add(tx2);
 
-        accountRepository.save(account1);
-        accountRepository.save(account2);
-        ledgerRepository.save(testLedger);
+        accountDAO.save(account1);
+        accountDAO.save(account2);
+        ledgerDAO.save(testLedger);
 
         mockMvc.perform(get("/accounts/{id}/get-transactions-for-month", account1.getId())
                         .principal(() -> "Alice")
@@ -2074,6 +2077,7 @@ public class AccountTest {
                         .principal(() -> "Alice")
                         .param("month", "2025-10"))
                 .andExpect(status().isOk())
+                .andDo(print())
                 .andExpect(jsonPath("$", hasSize(2)))
                 .andExpect(jsonPath("$[0].amount").value(100))
                 .andExpect(jsonPath("$[1].amount").value(50));
