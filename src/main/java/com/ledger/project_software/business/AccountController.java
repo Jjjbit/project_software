@@ -295,8 +295,9 @@ public class AccountController {
         if (fromAccount != null) {
             description = fromAccount.getName() + " to " + lendingAccount.getName();
         } else {
-            description = lendingAccount.getName() + "to" + "External account";
+            description = "External account" + "to" + lendingAccount.getName();
         }
+
 
         Transaction initialTransaction = new Transfer(
                 date != null ? date : LocalDate.now(),
