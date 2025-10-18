@@ -29,19 +29,19 @@ import static org.junit.jupiter.api.Assertions.*;
 public class LedgerCategoryStructuralTest {
 
     @Mock
-    private UserDAO userRepository;
+    private UserDAO userDAO;
 
     @Mock
-    private LedgerDAO ledgerRepository;
+    private LedgerDAO ledgerDAO;
 
     @Mock
-    private LedgerCategoryDAO ledgerCategoryRepository;
+    private LedgerCategoryDAO ledgerCategoryDAO;
 
     @Mock
-    private TransactionDAO transactionRepository;
+    private TransactionDAO transactionDAO;
 
     @Mock
-    private BudgetDAO budgetRepository;
+    private BudgetDAO budgetDAO;
 
     @InjectMocks
     private LedgerCategoryController ledgerCategoryController;
@@ -73,19 +73,19 @@ public class LedgerCategoryStructuralTest {
     //createCategory Tests
     @Test
     public void testCreateCategory_Success() {
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(ledgerRepository.findById(1L)).thenReturn(Optional.of(testLedger));
-        Mockito.when(ledgerCategoryRepository.existsByLedgerAndName(testLedger, "Transport"))
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(ledgerDAO.findById(1L)).thenReturn(Optional.of(testLedger));
+        Mockito.when(ledgerCategoryDAO.existsByLedgerAndName(testLedger, "Transport"))
                 .thenReturn(false);
-        Mockito.when(ledgerCategoryRepository.save(any(LedgerCategory.class))).thenAnswer(i -> i.getArguments()[0]);
+        Mockito.when(ledgerCategoryDAO.save(any(LedgerCategory.class))).thenAnswer(i -> i.getArguments()[0]);
 
         ResponseEntity<String> response = ledgerCategoryController.createCategory(
                 "Transport", principal, 1L, CategoryType.EXPENSE);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertEquals("Category created successfully", response.getBody());
-        verify(ledgerCategoryRepository, times(1)).save(any(LedgerCategory.class));
-        verify(ledgerRepository, times(1)).save(testLedger);
+        verify(ledgerCategoryDAO, times(1)).save(any(LedgerCategory.class));
+        verify(ledgerDAO, times(1)).save(testLedger);
     }
 
     @Test
@@ -95,12 +95,12 @@ public class LedgerCategoryStructuralTest {
 
         assertEquals(HttpStatus.UNAUTHORIZED, response.getStatusCode());
         assertEquals("Unauthorized access", response.getBody());
-        verify(ledgerCategoryRepository, never()).save(any());
+        verify(ledgerCategoryDAO, never()).save(any());
     }
 
     @Test
     public void testCreateCategory_Unauthorized_UserNotFound() {
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(null);
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(null);
 
         ResponseEntity<String> response = ledgerCategoryController.createCategory(
                 "Transport", principal, 1L, CategoryType.EXPENSE);
@@ -111,7 +111,7 @@ public class LedgerCategoryStructuralTest {
 
     @Test
     public void testCreateCategory_BadRequest_NullLedgerId() {
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
 
         ResponseEntity<String> response = ledgerCategoryController.createCategory(
                 "Transport", principal, null, CategoryType.EXPENSE);
@@ -122,8 +122,8 @@ public class LedgerCategoryStructuralTest {
 
     @Test
     public void testCreateCategory_NotFound_LedgerNotFound() {
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(ledgerRepository.findById(999L)).thenReturn(Optional.empty());
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(ledgerDAO.findById(999L)).thenReturn(Optional.empty());
 
         assertThrows(ResponseStatusException.class, () ->
                 ledgerCategoryController.createCategory("Transport", principal, 999L, CategoryType.EXPENSE)
@@ -132,8 +132,8 @@ public class LedgerCategoryStructuralTest {
 
     @Test
     public void testCreateCategory_BadRequest_NullName() {
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(ledgerRepository.findById(1L)).thenReturn(Optional.of(testLedger));
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(ledgerDAO.findById(1L)).thenReturn(Optional.of(testLedger));
 
         ResponseEntity<String> response = ledgerCategoryController.createCategory(
                 null, principal, 1L, CategoryType.EXPENSE);
@@ -144,8 +144,8 @@ public class LedgerCategoryStructuralTest {
 
     @Test
     public void testCreateCategory_BadRequest_EmptyName() {
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(ledgerRepository.findById(1L)).thenReturn(Optional.of(testLedger));
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(ledgerDAO.findById(1L)).thenReturn(Optional.of(testLedger));
 
         ResponseEntity<String> response = ledgerCategoryController.createCategory(
                 "   ", principal, 1L, CategoryType.EXPENSE);
@@ -157,8 +157,8 @@ public class LedgerCategoryStructuralTest {
     @Test
     public void testCreateCategory_BadRequest_NameTooLong() {
         String longName = "a".repeat(101);
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(ledgerRepository.findById(1L)).thenReturn(Optional.of(testLedger));
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(ledgerDAO.findById(1L)).thenReturn(Optional.of(testLedger));
 
         ResponseEntity<String> response = ledgerCategoryController.createCategory(
                 longName, principal, 1L, CategoryType.EXPENSE);
@@ -169,9 +169,9 @@ public class LedgerCategoryStructuralTest {
 
     @Test
     public void testCreateCategory_Conflict_NameExists() {
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(ledgerRepository.findById(1L)).thenReturn(Optional.of(testLedger));
-        Mockito.when(ledgerCategoryRepository.existsByLedgerAndName(testLedger, "Food"))
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(ledgerDAO.findById(1L)).thenReturn(Optional.of(testLedger));
+        Mockito.when(ledgerCategoryDAO.existsByLedgerAndName(testLedger, "Food"))
                 .thenReturn(true);
         ResponseEntity<String> response = ledgerCategoryController.createCategory(
                 "Food", principal, 1L, CategoryType.EXPENSE);
@@ -183,12 +183,12 @@ public class LedgerCategoryStructuralTest {
     //createSubCategory Tests
     @Test
     public void testCreateSubCategory_Success() {
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(ledgerCategoryRepository.findById(10L)).thenReturn(Optional.of(parentCategory));
-        Mockito.when(ledgerRepository.findById(1L)).thenReturn(Optional.of(testLedger));
-        Mockito.when(ledgerCategoryRepository.existsByLedgerAndName(testLedger, "Dinner"))
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(ledgerCategoryDAO.findById(10L)).thenReturn(Optional.of(parentCategory));
+        Mockito.when(ledgerDAO.findById(1L)).thenReturn(Optional.of(testLedger));
+        Mockito.when(ledgerCategoryDAO.existsByLedgerAndName(testLedger, "Dinner"))
                 .thenReturn(false);
-        Mockito.when(ledgerCategoryRepository.save(any(LedgerCategory.class)))
+        Mockito.when(ledgerCategoryDAO.save(any(LedgerCategory.class)))
                 .thenAnswer(i -> i.getArguments()[0]);
 
         ResponseEntity<String> response = ledgerCategoryController.createSubCategory(
@@ -196,7 +196,7 @@ public class LedgerCategoryStructuralTest {
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertEquals("SubCategory created successfully", response.getBody());
-        verify(ledgerCategoryRepository, times(2)).save(any(LedgerCategory.class));
+        verify(ledgerCategoryDAO, times(2)).save(any(LedgerCategory.class));
     }
 
     @Test
@@ -210,7 +210,7 @@ public class LedgerCategoryStructuralTest {
 
     @Test
     public void testCreateSubCategory_Unauthorized_UserNotFound() {
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(null);
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(null);
 
         ResponseEntity<String> response = ledgerCategoryController.createSubCategory(
                 10L, "Dinner", principal, 1L, CategoryType.EXPENSE);
@@ -221,7 +221,7 @@ public class LedgerCategoryStructuralTest {
 
     @Test
     public void testCreateSubCategory_BadRequest_NullParentId() {
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
 
         ResponseEntity<String> response = ledgerCategoryController.createSubCategory(
                 null, "Dinner", principal, 1L, CategoryType.EXPENSE);
@@ -232,8 +232,8 @@ public class LedgerCategoryStructuralTest {
 
     @Test
     public void testCreateSubCategory_NotFound_ParentNotFound() {
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(ledgerCategoryRepository.findById(999L)).thenReturn(Optional.empty());
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(ledgerCategoryDAO.findById(999L)).thenReturn(Optional.empty());
 
         assertThrows(ResponseStatusException.class, () ->
                 ledgerCategoryController.createSubCategory(999L, "Dinner", principal, 1L, CategoryType.EXPENSE)
@@ -242,8 +242,8 @@ public class LedgerCategoryStructuralTest {
 
     @Test
     public void testCreateSubCategory_BadRequest_ParentIsSubCategory() {
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(ledgerCategoryRepository.findById(11L)).thenReturn(Optional.of(subCategory));
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(ledgerCategoryDAO.findById(11L)).thenReturn(Optional.of(subCategory));
 
         ResponseEntity<String> response = ledgerCategoryController.createSubCategory(
                 11L, "Dinner", principal, 1L, CategoryType.EXPENSE);
@@ -254,8 +254,8 @@ public class LedgerCategoryStructuralTest {
 
     @Test
     public void testCreateSubCategory_BadRequest_NullLedgerId() {
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(ledgerCategoryRepository.findById(10L)).thenReturn(Optional.of(parentCategory));
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(ledgerCategoryDAO.findById(10L)).thenReturn(Optional.of(parentCategory));
 
         ResponseEntity<String> response = ledgerCategoryController.createSubCategory(
                 10L, "Dinner", principal, null, CategoryType.EXPENSE);
@@ -266,9 +266,9 @@ public class LedgerCategoryStructuralTest {
 
     @Test
     public void testCreateSubCategory_NotFound_LedgerNotFound() {
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(ledgerCategoryRepository.findById(10L)).thenReturn(Optional.of(parentCategory));
-        Mockito.when(ledgerRepository.findById(999L)).thenReturn(Optional.empty());
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(ledgerCategoryDAO.findById(10L)).thenReturn(Optional.of(parentCategory));
+        Mockito.when(ledgerDAO.findById(999L)).thenReturn(Optional.empty());
 
         assertThrows(ResponseStatusException.class, () ->
                 ledgerCategoryController.createSubCategory(10L, "Dinner", principal, 999L, CategoryType.EXPENSE)
@@ -277,9 +277,9 @@ public class LedgerCategoryStructuralTest {
 
     @Test
     public void testCreateSubCategory_BadRequest_NullName() {
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(ledgerCategoryRepository.findById(10L)).thenReturn(Optional.of(parentCategory));
-        Mockito.when(ledgerRepository.findById(1L)).thenReturn(Optional.of(testLedger));
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(ledgerCategoryDAO.findById(10L)).thenReturn(Optional.of(parentCategory));
+        Mockito.when(ledgerDAO.findById(1L)).thenReturn(Optional.of(testLedger));
 
         ResponseEntity<String> response = ledgerCategoryController.createSubCategory(
                 10L, null, principal, 1L, CategoryType.EXPENSE);
@@ -290,9 +290,9 @@ public class LedgerCategoryStructuralTest {
 
     @Test
     public void testCreateSubCategory_BadRequest_EmptyName() {
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(ledgerCategoryRepository.findById(10L)).thenReturn(Optional.of(parentCategory));
-        Mockito.when(ledgerRepository.findById(1L)).thenReturn(Optional.of(testLedger));
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(ledgerCategoryDAO.findById(10L)).thenReturn(Optional.of(parentCategory));
+        Mockito.when(ledgerDAO.findById(1L)).thenReturn(Optional.of(testLedger));
 
         ResponseEntity<String> response = ledgerCategoryController.createSubCategory(
                 10L, "   ", principal, 1L, CategoryType.EXPENSE);
@@ -304,9 +304,9 @@ public class LedgerCategoryStructuralTest {
     @Test
     public void testCreateSubCategory_BadRequest_NameTooLong() {
         String longName = "a".repeat(101);
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(ledgerCategoryRepository.findById(10L)).thenReturn(Optional.of(parentCategory));
-        Mockito.when(ledgerRepository.findById(1L)).thenReturn(Optional.of(testLedger));
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(ledgerCategoryDAO.findById(10L)).thenReturn(Optional.of(parentCategory));
+        Mockito.when(ledgerDAO.findById(1L)).thenReturn(Optional.of(testLedger));
 
         ResponseEntity<String> response = ledgerCategoryController.createSubCategory(
                 10L, longName, principal, 1L, CategoryType.EXPENSE);
@@ -317,10 +317,10 @@ public class LedgerCategoryStructuralTest {
 
     @Test
     public void testCreateSubCategory_Conflict_NameExists() {
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(ledgerCategoryRepository.findById(10L)).thenReturn(Optional.of(parentCategory));
-        Mockito.when(ledgerRepository.findById(1L)).thenReturn(Optional.of(testLedger));
-        Mockito.when(ledgerCategoryRepository.existsByLedgerAndName(testLedger, "Lunch"))
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(ledgerCategoryDAO.findById(10L)).thenReturn(Optional.of(parentCategory));
+        Mockito.when(ledgerDAO.findById(1L)).thenReturn(Optional.of(testLedger));
+        Mockito.when(ledgerCategoryDAO.existsByLedgerAndName(testLedger, "Lunch"))
                 .thenReturn(true);
 
         ResponseEntity<String> response = ledgerCategoryController.createSubCategory(
@@ -336,10 +336,10 @@ public class LedgerCategoryStructuralTest {
         LedgerCategory categoryToDemote = new LedgerCategory("Transport", CategoryType.EXPENSE, testLedger);
         categoryToDemote.setId(20L);
 
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(ledgerCategoryRepository.findById(20L)).thenReturn(Optional.of(categoryToDemote));
-        Mockito.when(ledgerCategoryRepository.findById(10L)).thenReturn(Optional.of(parentCategory));
-        Mockito.when(ledgerCategoryRepository.save(any(LedgerCategory.class)))
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(ledgerCategoryDAO.findById(20L)).thenReturn(Optional.of(categoryToDemote));
+        Mockito.when(ledgerCategoryDAO.findById(10L)).thenReturn(Optional.of(parentCategory));
+        Mockito.when(ledgerCategoryDAO.save(any(LedgerCategory.class)))
                 .thenAnswer(i -> i.getArguments()[0]);
 
         ResponseEntity<String> response = ledgerCategoryController.demoteCategoryToSubCategory(
@@ -347,7 +347,7 @@ public class LedgerCategoryStructuralTest {
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertEquals("Demoted successfully", response.getBody());
-        verify(ledgerCategoryRepository, times(2)).save(any(LedgerCategory.class));
+        verify(ledgerCategoryDAO, times(2)).save(any(LedgerCategory.class));
     }
 
     @Test
@@ -361,7 +361,7 @@ public class LedgerCategoryStructuralTest {
 
     @Test
     public void testDemoteCategoryToSubCategory_Unauthorized_UserNotFound() {
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(null);
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(null);
 
         ResponseEntity<String> response = ledgerCategoryController.demoteCategoryToSubCategory(
                 20L, principal, 10L);
@@ -372,8 +372,8 @@ public class LedgerCategoryStructuralTest {
 
     @Test
     public void testDemoteCategoryToSubCategory_NotFound_CategoryNotFound() {
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(ledgerCategoryRepository.findById(999L)).thenReturn(Optional.empty());
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(ledgerCategoryDAO.findById(999L)).thenReturn(Optional.empty());
 
         assertThrows(ResponseStatusException.class, () ->
                 ledgerCategoryController.demoteCategoryToSubCategory(999L, principal, 10L)
@@ -382,8 +382,8 @@ public class LedgerCategoryStructuralTest {
 
     @Test
     public void testDemoteCategoryToSubCategory_BadRequest_AlreadySubCategory() {
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(ledgerCategoryRepository.findById(11L)).thenReturn(Optional.of(subCategory));
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(ledgerCategoryDAO.findById(11L)).thenReturn(Optional.of(subCategory));
 
         ResponseEntity<String> response = ledgerCategoryController.demoteCategoryToSubCategory(
                 11L, principal, 10L);
@@ -394,8 +394,8 @@ public class LedgerCategoryStructuralTest {
 
     @Test
     public void testDemoteCategoryToSubCategory_BadRequest_NullParentId() {
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(ledgerCategoryRepository.findById(10L)).thenReturn(Optional.of(parentCategory));
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(ledgerCategoryDAO.findById(10L)).thenReturn(Optional.of(parentCategory));
 
         ResponseEntity<String> response = ledgerCategoryController.demoteCategoryToSubCategory(
                 10L, principal, null);
@@ -406,8 +406,8 @@ public class LedgerCategoryStructuralTest {
 
     @Test
     public void testDemoteCategoryToSubCategory_BadRequest_SameIdAsParent() {
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(ledgerCategoryRepository.findById(10L)).thenReturn(Optional.of(parentCategory));
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(ledgerCategoryDAO.findById(10L)).thenReturn(Optional.of(parentCategory));
 
         ResponseEntity<String> response = ledgerCategoryController.demoteCategoryToSubCategory(
                 10L, principal, 10L);
@@ -421,9 +421,9 @@ public class LedgerCategoryStructuralTest {
         LedgerCategory categoryToDemote = new LedgerCategory("Transport", CategoryType.EXPENSE, testLedger);
         categoryToDemote.setId(20L);
 
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(ledgerCategoryRepository.findById(20L)).thenReturn(Optional.of(categoryToDemote));
-        Mockito.when(ledgerCategoryRepository.findById(999L)).thenReturn(Optional.empty());
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(ledgerCategoryDAO.findById(20L)).thenReturn(Optional.of(categoryToDemote));
+        Mockito.when(ledgerCategoryDAO.findById(999L)).thenReturn(Optional.empty());
 
         assertThrows(ResponseStatusException.class, () ->
                 ledgerCategoryController.demoteCategoryToSubCategory(20L, principal, 999L)
@@ -435,9 +435,9 @@ public class LedgerCategoryStructuralTest {
         LedgerCategory categoryToDemote = new LedgerCategory("Transport", CategoryType.EXPENSE, testLedger);
         categoryToDemote.setId(20L);
 
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(ledgerCategoryRepository.findById(20L)).thenReturn(Optional.of(categoryToDemote));
-        Mockito.when(ledgerCategoryRepository.findById(11L)).thenReturn(Optional.of(subCategory));
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(ledgerCategoryDAO.findById(20L)).thenReturn(Optional.of(categoryToDemote));
+        Mockito.when(ledgerCategoryDAO.findById(11L)).thenReturn(Optional.of(subCategory));
 
         ResponseEntity<String> response = ledgerCategoryController.demoteCategoryToSubCategory(
                 20L, principal, 11L);
@@ -450,9 +450,9 @@ public class LedgerCategoryStructuralTest {
     public void testDemoteCategoryToSubCategory_BadRequest_HasSubCategories() {
         parentCategory.getChildren().add(subCategory);
 
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(ledgerCategoryRepository.findById(10L)).thenReturn(Optional.of(parentCategory));
-        Mockito.when(ledgerCategoryRepository.findById(20L)).thenReturn(Optional.of(parentCategory));
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(ledgerCategoryDAO.findById(10L)).thenReturn(Optional.of(parentCategory));
+        Mockito.when(ledgerCategoryDAO.findById(20L)).thenReturn(Optional.of(parentCategory));
 
         ResponseEntity<String> response = ledgerCategoryController.demoteCategoryToSubCategory(
                 10L, principal, 20L);
@@ -464,9 +464,9 @@ public class LedgerCategoryStructuralTest {
     //promoteSubCategoryToCategory Tests
     @Test
     public void testPromoteSubCategoryToCategory_Success() {
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(ledgerCategoryRepository.findById(11L)).thenReturn(Optional.of(subCategory));
-        Mockito.when(ledgerCategoryRepository.save(any(LedgerCategory.class)))
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(ledgerCategoryDAO.findById(11L)).thenReturn(Optional.of(subCategory));
+        Mockito.when(ledgerCategoryDAO.save(any(LedgerCategory.class)))
                 .thenAnswer(i -> i.getArguments()[0]);
 
         parentCategory.getChildren().add(subCategory);
@@ -476,7 +476,7 @@ public class LedgerCategoryStructuralTest {
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertEquals("Promoted successfully", response.getBody());
-        verify(ledgerCategoryRepository, times(2)).save(any(LedgerCategory.class));
+        verify(ledgerCategoryDAO, times(2)).save(any(LedgerCategory.class));
     }
 
     @Test
@@ -490,7 +490,7 @@ public class LedgerCategoryStructuralTest {
 
     @Test
     public void testPromoteSubCategoryToCategory_Unauthorized_UserNotFound() {
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(null);
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(null);
 
         ResponseEntity<String> response = ledgerCategoryController.promoteSubCategoryToCategory(
                 11L, principal);
@@ -501,8 +501,8 @@ public class LedgerCategoryStructuralTest {
 
     @Test
     public void testPromoteSubCategoryToCategory_NotFound() {
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(ledgerCategoryRepository.findById(999L)).thenReturn(Optional.empty());
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(ledgerCategoryDAO.findById(999L)).thenReturn(Optional.empty());
 
         assertThrows(ResponseStatusException.class, () ->
                 ledgerCategoryController.promoteSubCategoryToCategory(999L, principal)
@@ -511,8 +511,8 @@ public class LedgerCategoryStructuralTest {
 
     @Test
     public void testPromoteSubCategoryToCategory_BadRequest_AlreadyCategory() {
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(ledgerCategoryRepository.findById(10L)).thenReturn(Optional.of(parentCategory));
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(ledgerCategoryDAO.findById(10L)).thenReturn(Optional.of(parentCategory));
 
         ResponseEntity<String> response = ledgerCategoryController.promoteSubCategoryToCategory(
                 10L, principal);
@@ -546,16 +546,16 @@ public class LedgerCategoryStructuralTest {
         categoryToDelete.getTransactions().add(expense);
         testLedger.getCategories().add(categoryToDelete);
 
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(ledgerCategoryRepository.findById(20L)).thenReturn(Optional.of(categoryToDelete));
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(ledgerCategoryDAO.findById(20L)).thenReturn(Optional.of(categoryToDelete));
 
         ResponseEntity<String> response = ledgerCategoryController.deleteCategory(
                 20L, principal, true, null);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertEquals("Deleted successfully", response.getBody());
-        verify(transactionRepository, times(1)).delete(expense);
-        verify(ledgerCategoryRepository, times(1)).delete(categoryToDelete);
+        verify(transactionDAO, times(1)).delete(expense);
+        verify(ledgerCategoryDAO, times(1)).delete(categoryToDelete);
     }
 
     @Test
@@ -576,18 +576,18 @@ public class LedgerCategoryStructuralTest {
         categoryToDelete.getTransactions().add(transaction);
         testLedger.getCategories().add(categoryToDelete);
 
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(ledgerCategoryRepository.findById(20L)).thenReturn(Optional.of(categoryToDelete));
-        Mockito.when(ledgerCategoryRepository.findById(30L)).thenReturn(Optional.of(migrateToCategory));
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(ledgerCategoryDAO.findById(20L)).thenReturn(Optional.of(categoryToDelete));
+        Mockito.when(ledgerCategoryDAO.findById(30L)).thenReturn(Optional.of(migrateToCategory));
 
         ResponseEntity<String> response = ledgerCategoryController.deleteCategory(
                 20L, principal, false, 30L);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertEquals("Deleted successfully", response.getBody());
-        verify(transactionRepository, times(1)).save(transaction);
-        verify(ledgerCategoryRepository, times(1)).delete(categoryToDelete);
-        verify(transactionRepository, never()).delete(any());
+        verify(transactionDAO, times(1)).save(transaction);
+        verify(ledgerCategoryDAO, times(1)).delete(categoryToDelete);
+        verify(transactionDAO, never()).delete(any());
     }
 
     @Test
@@ -601,7 +601,7 @@ public class LedgerCategoryStructuralTest {
 
     @Test
     public void testDeleteCategory_Unauthorized_UserNotFound() {
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(null);
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(null);
 
         ResponseEntity<String> response = ledgerCategoryController.deleteCategory(
                 20L, principal, true, null);
@@ -612,8 +612,8 @@ public class LedgerCategoryStructuralTest {
 
     @Test
     public void testDeleteCategory_NotFound() {
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(ledgerCategoryRepository.findById(999L)).thenReturn(Optional.empty());
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(ledgerCategoryDAO.findById(999L)).thenReturn(Optional.empty());
 
         assertThrows(ResponseStatusException.class, () ->
                 ledgerCategoryController.deleteCategory(999L, principal, true, null)
@@ -624,8 +624,8 @@ public class LedgerCategoryStructuralTest {
     public void testDeleteCategory_BadRequest_HasSubCategories() {
         parentCategory.getChildren().add(subCategory);
 
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(ledgerCategoryRepository.findById(10L)).thenReturn(Optional.of(parentCategory));
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(ledgerCategoryDAO.findById(10L)).thenReturn(Optional.of(parentCategory));
 
         ResponseEntity<String> response = ledgerCategoryController.deleteCategory(
                 10L, principal, true, null);
@@ -648,8 +648,8 @@ public class LedgerCategoryStructuralTest {
         categoryToDelete.getTransactions().add(transaction);
         testLedger.getCategories().add(categoryToDelete);
 
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(ledgerCategoryRepository.findById(20L)).thenReturn(Optional.of(categoryToDelete));
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(ledgerCategoryDAO.findById(20L)).thenReturn(Optional.of(categoryToDelete));
 
         ResponseEntity<String> response = ledgerCategoryController.deleteCategory(
                 20L, principal, false, null);
@@ -672,9 +672,9 @@ public class LedgerCategoryStructuralTest {
         categoryToDelete.getTransactions().add(transaction);
         testLedger.getCategories().add(categoryToDelete);
 
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(ledgerCategoryRepository.findById(20L)).thenReturn(Optional.of(categoryToDelete));
-        Mockito.when(ledgerCategoryRepository.findById(999L)).thenReturn(Optional.empty());
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(ledgerCategoryDAO.findById(20L)).thenReturn(Optional.of(categoryToDelete));
+        Mockito.when(ledgerCategoryDAO.findById(999L)).thenReturn(Optional.empty());
 
         assertThrows(ResponseStatusException.class, () ->
                 ledgerCategoryController.deleteCategory(20L, principal, false, 999L)
@@ -694,9 +694,9 @@ public class LedgerCategoryStructuralTest {
                 categoryToDelete);
         categoryToDelete.getTransactions().add(transaction);
 
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(ledgerCategoryRepository.findById(20L)).thenReturn(Optional.of(categoryToDelete));
-        Mockito.when(ledgerCategoryRepository.findById(11L)).thenReturn(Optional.of(subCategory));
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(ledgerCategoryDAO.findById(20L)).thenReturn(Optional.of(categoryToDelete));
+        Mockito.when(ledgerCategoryDAO.findById(11L)).thenReturn(Optional.of(subCategory));
 
         ResponseEntity<String> response = ledgerCategoryController.deleteCategory(
                 20L, principal, false, 11L);
@@ -719,15 +719,15 @@ public class LedgerCategoryStructuralTest {
 
         testLedger.getCategories().add(categoryToDelete);
 
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(ledgerCategoryRepository.findById(20L)).thenReturn(Optional.of(categoryToDelete));
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(ledgerCategoryDAO.findById(20L)).thenReturn(Optional.of(categoryToDelete));
 
         ResponseEntity<String> response = ledgerCategoryController.deleteCategory(
                 20L, principal, true, null);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
-        verify(budgetRepository, times(1)).deleteAll(anyList());
-        verify(ledgerCategoryRepository, times(1)).delete(categoryToDelete);
+        verify(budgetDAO, times(1)).deleteAll(anyList());
+        verify(ledgerCategoryDAO, times(1)).delete(categoryToDelete);
     }
 
     @Test
@@ -735,25 +735,25 @@ public class LedgerCategoryStructuralTest {
         parentCategory.getChildren().add(subCategory);
         testLedger.getCategories().add(subCategory);
 
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(ledgerCategoryRepository.findById(11L)).thenReturn(Optional.of(subCategory));
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(ledgerCategoryDAO.findById(11L)).thenReturn(Optional.of(subCategory));
 
         ResponseEntity<String> response = ledgerCategoryController.deleteCategory(
                 11L, principal, true, null);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
-        verify(ledgerCategoryRepository, times(1)).save(parentCategory);
-        verify(ledgerCategoryRepository, times(1)).delete(subCategory);
+        verify(ledgerCategoryDAO, times(1)).save(parentCategory);
+        verify(ledgerCategoryDAO, times(1)).delete(subCategory);
     }
 
     // renameCategory Tests
     @Test
     public void testRenameCategory_Success() {
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(ledgerCategoryRepository.findById(10L)).thenReturn(Optional.of(parentCategory));
-        Mockito.when(ledgerCategoryRepository.existsByLedgerAndName(testLedger, "Groceries"))
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(ledgerCategoryDAO.findById(10L)).thenReturn(Optional.of(parentCategory));
+        Mockito.when(ledgerCategoryDAO.existsByLedgerAndName(testLedger, "Groceries"))
                 .thenReturn(false);
-        Mockito.when(ledgerCategoryRepository.save(any(LedgerCategory.class)))
+        Mockito.when(ledgerCategoryDAO.save(any(LedgerCategory.class)))
                 .thenAnswer(i -> i.getArguments()[0]);
 
         ResponseEntity<String> response = ledgerCategoryController.renameCategory(10L, "Groceries", principal);
@@ -761,7 +761,7 @@ public class LedgerCategoryStructuralTest {
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertEquals("Renamed successfully", response.getBody());
         assertEquals("Groceries", parentCategory.getName());
-        verify(ledgerCategoryRepository, times(1)).save(parentCategory);
+        verify(ledgerCategoryDAO, times(1)).save(parentCategory);
     }
 
     @Test
@@ -774,7 +774,7 @@ public class LedgerCategoryStructuralTest {
 
     @Test
     public void testRenameCategory_Unauthorized_UserNotFound() {
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(null);
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(null);
 
         ResponseEntity<String> response = ledgerCategoryController.renameCategory(10L, "Groceries", principal);
 
@@ -784,8 +784,8 @@ public class LedgerCategoryStructuralTest {
 
     @Test
     public void testRenameCategory_NotFound() {
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(ledgerCategoryRepository.findById(999L)).thenReturn(Optional.empty());
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(ledgerCategoryDAO.findById(999L)).thenReturn(Optional.empty());
 
         assertThrows(ResponseStatusException.class, () ->
                 ledgerCategoryController.renameCategory(999L, "Groceries", principal)
@@ -794,8 +794,8 @@ public class LedgerCategoryStructuralTest {
 
     @Test
     public void testRenameCategory_BadRequest_NullName() {
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(ledgerCategoryRepository.findById(10L)).thenReturn(Optional.of(parentCategory));
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(ledgerCategoryDAO.findById(10L)).thenReturn(Optional.of(parentCategory));
 
         ResponseEntity<String> response = ledgerCategoryController.renameCategory(10L, null, principal);
 
@@ -805,8 +805,8 @@ public class LedgerCategoryStructuralTest {
 
     @Test
     public void testRenameCategory_BadRequest_EmptyName() {
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(ledgerCategoryRepository.findById(10L)).thenReturn(Optional.of(parentCategory));
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(ledgerCategoryDAO.findById(10L)).thenReturn(Optional.of(parentCategory));
 
         ResponseEntity<String> response = ledgerCategoryController.renameCategory(10L, "   ", principal);
 
@@ -819,11 +819,11 @@ public class LedgerCategoryStructuralTest {
         LedgerCategory existingCategory = new LedgerCategory("Transport", CategoryType.EXPENSE, testLedger);
         existingCategory.setId(20L);
 
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(ledgerCategoryRepository.findById(10L)).thenReturn(Optional.of(parentCategory));
-        Mockito.when(ledgerCategoryRepository.existsByLedgerAndName(testLedger, "Transport"))
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(ledgerCategoryDAO.findById(10L)).thenReturn(Optional.of(parentCategory));
+        Mockito.when(ledgerCategoryDAO.existsByLedgerAndName(testLedger, "Transport"))
                 .thenReturn(true);
-        Mockito.when(ledgerCategoryRepository.findByLedgerAndName(testLedger, "Transport"))
+        Mockito.when(ledgerCategoryDAO.findByLedgerAndName(testLedger, "Transport"))
                 .thenReturn(existingCategory);
 
         ResponseEntity<String> response = ledgerCategoryController.renameCategory(10L, "Transport", principal);
@@ -836,11 +836,11 @@ public class LedgerCategoryStructuralTest {
     public void testRenameCategory_Success_SameNameSameCategory() {
         parentCategory.setName("Food");
 
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(ledgerCategoryRepository.findById(10L)).thenReturn(Optional.of(parentCategory));
-        Mockito.when(ledgerCategoryRepository.existsByLedgerAndName(testLedger, "Food"))
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(ledgerCategoryDAO.findById(10L)).thenReturn(Optional.of(parentCategory));
+        Mockito.when(ledgerCategoryDAO.existsByLedgerAndName(testLedger, "Food"))
                 .thenReturn(true);
-        Mockito.when(ledgerCategoryRepository.findByLedgerAndName(testLedger, "Food"))
+        Mockito.when(ledgerCategoryDAO.findByLedgerAndName(testLedger, "Food"))
                 .thenReturn(parentCategory);
 
         ResponseEntity<String> response = ledgerCategoryController.renameCategory(10L, "Food", principal);
@@ -853,9 +853,9 @@ public class LedgerCategoryStructuralTest {
     public void testRenameCategory_BadRequest_NameTooLong() {
         String longName = "a".repeat(101);
 
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(ledgerCategoryRepository.findById(10L)).thenReturn(Optional.of(parentCategory));
-        Mockito.when(ledgerCategoryRepository.existsByLedgerAndName(testLedger, longName))
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(ledgerCategoryDAO.findById(10L)).thenReturn(Optional.of(parentCategory));
+        Mockito.when(ledgerCategoryDAO.existsByLedgerAndName(testLedger, longName))
                 .thenReturn(false);
 
         ResponseEntity<String> response = ledgerCategoryController.renameCategory(10L, longName, principal);
@@ -875,10 +875,10 @@ public class LedgerCategoryStructuralTest {
         oldParent.getChildren().add(subCategory);
         subCategory.setParent(oldParent);
 
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(ledgerCategoryRepository.findById(11L)).thenReturn(Optional.of(subCategory));
-        Mockito.when(ledgerCategoryRepository.findById(20L)).thenReturn(Optional.of(newParent));
-        Mockito.when(ledgerCategoryRepository.save(any(LedgerCategory.class)))
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(ledgerCategoryDAO.findById(11L)).thenReturn(Optional.of(subCategory));
+        Mockito.when(ledgerCategoryDAO.findById(20L)).thenReturn(Optional.of(newParent));
+        Mockito.when(ledgerCategoryDAO.save(any(LedgerCategory.class)))
                 .thenAnswer(i -> i.getArguments()[0]);
 
 
@@ -886,7 +886,7 @@ public class LedgerCategoryStructuralTest {
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertEquals("Parent category changed successfully", response.getBody());
-        verify(ledgerCategoryRepository, times(3)).save(any(LedgerCategory.class));
+        verify(ledgerCategoryDAO, times(3)).save(any(LedgerCategory.class));
     }
 
     @Test
@@ -899,7 +899,7 @@ public class LedgerCategoryStructuralTest {
 
     @Test
     public void testChangeParentCategory_Unauthorized_UserNotFound() {
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(null);
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(null);
 
         ResponseEntity<String> response = ledgerCategoryController.changeParentCategory(11L, 20L, principal);
 
@@ -909,7 +909,7 @@ public class LedgerCategoryStructuralTest {
 
     @Test
     public void testChangeParentCategory_BadRequest_SameIdAsParent() {
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
 
         ResponseEntity<String> response = ledgerCategoryController.changeParentCategory(10L, 10L, principal);
 
@@ -919,8 +919,8 @@ public class LedgerCategoryStructuralTest {
 
     @Test
     public void testChangeParentCategory_NotFound_CategoryNotFound() {
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(ledgerCategoryRepository.findById(999L)).thenReturn(Optional.empty());
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(ledgerCategoryDAO.findById(999L)).thenReturn(Optional.empty());
 
         assertThrows(ResponseStatusException.class, () ->
                 ledgerCategoryController.changeParentCategory(999L, 20L, principal)
@@ -929,9 +929,9 @@ public class LedgerCategoryStructuralTest {
 
     @Test
     public void testChangeParentCategory_NotFound_NewParentNotFound() {
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(ledgerCategoryRepository.findById(11L)).thenReturn(Optional.of(subCategory));
-        Mockito.when(ledgerCategoryRepository.findById(999L)).thenReturn(Optional.empty());
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(ledgerCategoryDAO.findById(11L)).thenReturn(Optional.of(subCategory));
+        Mockito.when(ledgerCategoryDAO.findById(999L)).thenReturn(Optional.empty());
 
         assertThrows(ResponseStatusException.class, () ->
                 ledgerCategoryController.changeParentCategory(11L, 999L, principal)
@@ -944,9 +944,9 @@ public class LedgerCategoryStructuralTest {
         anotherSubCategory.setId(12L);
         anotherSubCategory.setParent(parentCategory);
 
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(ledgerCategoryRepository.findById(11L)).thenReturn(Optional.of(subCategory));
-        Mockito.when(ledgerCategoryRepository.findById(12L)).thenReturn(Optional.of(anotherSubCategory));
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(ledgerCategoryDAO.findById(11L)).thenReturn(Optional.of(subCategory));
+        Mockito.when(ledgerCategoryDAO.findById(12L)).thenReturn(Optional.of(anotherSubCategory));
 
         ResponseEntity<String> response = ledgerCategoryController.changeParentCategory(11L, 12L, principal);
 
@@ -956,12 +956,12 @@ public class LedgerCategoryStructuralTest {
 
     @Test
     public void testChangeParentCategory_BadRequest_CategoryIsNotSubCategory() {
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(ledgerCategoryRepository.findById(10L)).thenReturn(Optional.of(parentCategory));
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(ledgerCategoryDAO.findById(10L)).thenReturn(Optional.of(parentCategory));
 
         LedgerCategory newParent = new LedgerCategory("Transport", CategoryType.EXPENSE, testLedger);
         newParent.setId(20L);
-        Mockito.when(ledgerCategoryRepository.findById(20L)).thenReturn(Optional.of(newParent));
+        Mockito.when(ledgerCategoryDAO.findById(20L)).thenReturn(Optional.of(newParent));
 
         ResponseEntity<String> response = ledgerCategoryController.changeParentCategory(10L, 20L, principal);
 
@@ -989,10 +989,10 @@ public class LedgerCategoryStructuralTest {
 
         List<Transaction> transactions = List.of(tx1, tx2);
 
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(ledgerCategoryRepository.findById(10L)).thenReturn(Optional.of(parentCategory));
-        Mockito.when(ledgerCategoryRepository.findByParentId(10L)).thenReturn(List.of(subCategory));
-        Mockito.when(transactionRepository.findByCategoryIdsAndUserId(
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(ledgerCategoryDAO.findById(10L)).thenReturn(Optional.of(parentCategory));
+        Mockito.when(ledgerCategoryDAO.findByParentId(10L)).thenReturn(List.of(subCategory));
+        Mockito.when(transactionDAO.findByCategoryIdsAndUserId(
                         anyList(), any(LocalDate.class), any(LocalDate.class), eq(1L)))
                 .thenReturn(transactions);
 
@@ -1016,9 +1016,9 @@ public class LedgerCategoryStructuralTest {
                 subCategory);
         List<Transaction> transactions = List.of(tx1);
 
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(ledgerCategoryRepository.findById(11L)).thenReturn(Optional.of(subCategory));
-        Mockito.when(transactionRepository.findByCategoryIdAndUserId(
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(ledgerCategoryDAO.findById(11L)).thenReturn(Optional.of(subCategory));
+        Mockito.when(transactionDAO.findByCategoryIdAndUserId(
                         eq(11L), any(LocalDate.class), any(LocalDate.class), eq(1L)))
                 .thenReturn(transactions);
 
@@ -1032,9 +1032,9 @@ public class LedgerCategoryStructuralTest {
 
     @Test
     public void testGetCategoryTransactionsForMonth_Success_WithoutMonth() {
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(ledgerCategoryRepository.findById(11L)).thenReturn(Optional.of(subCategory));
-        Mockito.when(transactionRepository.findByCategoryIdAndUserId(
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(ledgerCategoryDAO.findById(11L)).thenReturn(Optional.of(subCategory));
+        Mockito.when(transactionDAO.findByCategoryIdAndUserId(
                         eq(11L), any(LocalDate.class), any(LocalDate.class), eq(1L)))
                 .thenReturn(List.of());
 
@@ -1055,7 +1055,7 @@ public class LedgerCategoryStructuralTest {
 
     @Test
     public void testGetCategoryTransactionsForMonth_Unauthorized_UserNotFound() {
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(null);
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(null);
 
         ResponseEntity<List<Transaction>> response = ledgerCategoryController
                 .getCategoryTransactionsForMonth(10L, principal, YearMonth.now());
@@ -1065,8 +1065,8 @@ public class LedgerCategoryStructuralTest {
 
     @Test
     public void testGetCategoryTransactionsForMonth_NotFound() {
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(ledgerCategoryRepository.findById(999L)).thenReturn(Optional.empty());
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(ledgerCategoryDAO.findById(999L)).thenReturn(Optional.empty());
 
         assertThrows(ResponseStatusException.class, () ->
                 ledgerCategoryController.getCategoryTransactionsForMonth(999L, principal, YearMonth.now())
@@ -1079,8 +1079,8 @@ public class LedgerCategoryStructuralTest {
         anotherUser.setId(2L);
         testLedger.setOwner(anotherUser);
 
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(ledgerCategoryRepository.findById(10L)).thenReturn(Optional.of(parentCategory));
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(ledgerCategoryDAO.findById(10L)).thenReturn(Optional.of(parentCategory));
 
         ResponseEntity<List<Transaction>> response = ledgerCategoryController
                 .getCategoryTransactionsForMonth(10L, principal, YearMonth.now());
@@ -1095,10 +1095,10 @@ public class LedgerCategoryStructuralTest {
         Transaction tx1 = new Expense(LocalDate.of(2025, 10, 5), BigDecimal.valueOf(50),
                 "Expense", null, testLedger, parentCategory);
 
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(ledgerCategoryRepository.findById(10L)).thenReturn(Optional.of(parentCategory));
-        Mockito.when(ledgerCategoryRepository.findByParentId(10L)).thenReturn(List.of());
-        Mockito.when(transactionRepository.findByCategoryIdsAndUserId(
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(ledgerCategoryDAO.findById(10L)).thenReturn(Optional.of(parentCategory));
+        Mockito.when(ledgerCategoryDAO.findByParentId(10L)).thenReturn(List.of());
+        Mockito.when(transactionDAO.findByCategoryIdsAndUserId(
                         anyList(), any(LocalDate.class), any(LocalDate.class), eq(1L)))
                 .thenReturn(List.of(tx1));
 
@@ -1113,9 +1113,9 @@ public class LedgerCategoryStructuralTest {
     public void testGetCategoryTransactionsForMonth_Success_NoTransactions() {
         YearMonth month = YearMonth.of(2025, 10);
 
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(ledgerCategoryRepository.findById(11L)).thenReturn(Optional.of(subCategory));
-        Mockito.when(transactionRepository.findByCategoryIdAndUserId(
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(ledgerCategoryDAO.findById(11L)).thenReturn(Optional.of(subCategory));
+        Mockito.when(transactionDAO.findByCategoryIdAndUserId(
                         eq(11L), any(LocalDate.class), any(LocalDate.class), eq(1L)))
                 .thenReturn(List.of());
 
