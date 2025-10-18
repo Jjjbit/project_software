@@ -25,7 +25,7 @@ import java.util.Map;
 @ExtendWith(MockitoExtension.class)
 public class UserStructuralTest {
     @Mock
-    private UserDAO userRepository; //mock del repository per simulare il comportamento senza collegarsi al database
+    private UserDAO userDAO; //mock del repository per simulare il comportamento senza collegarsi al database
 
     @InjectMocks
     private UserController userController;
@@ -463,19 +463,19 @@ public class UserStructuralTest {
     @Test
     public void testLogin_Success() {
         User testUser = new User("Alice", PasswordUtils.hash("12345"));
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
 
         ResponseEntity<String> response = userController.login("Alice", "12345");
 
         Assertions.assertEquals(HttpStatus.OK, response.getStatusCode());
         Assertions.assertEquals("Login successful", response.getBody());
-        verify(userRepository, times(1)).findByUsername("Alice");
+        verify(userDAO, times(1)).findByUsername("Alice");
     }
 
     @Test
     public void testLogin_Failure_WrongPassword() {
         User testUser = new User("Alice", PasswordUtils.hash("12345"));
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
 
         ResponseEntity<String> response = userController.login("Alice", "anyPassword");
 
@@ -485,7 +485,7 @@ public class UserStructuralTest {
 
     @Test
     public void testLogin_Failure_UserNotFound() {
-        Mockito.when(userRepository.findByUsername("Bob")).thenReturn(null);
+        Mockito.when(userDAO.findByUsername("Bob")).thenReturn(null);
 
         ResponseEntity<String> response = userController.login("Bob", "anyPassword");
 
@@ -495,18 +495,18 @@ public class UserStructuralTest {
 
     @Test
     public void testRegister_Success() {
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(null);
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(null);
         ResponseEntity<String> response = userController.register("Alice", "pass123");
 
         Assertions.assertEquals(HttpStatus.OK, response.getStatusCode());
         Assertions.assertEquals("Registration successful", response.getBody());
-        verify(userRepository, times(1)).findByUsername("Alice");
-        verify(userRepository, times(1)).save(any(User.class));
+        verify(userDAO, times(1)).findByUsername("Alice");
+        verify(userDAO, times(1)).save(any(User.class));
     }
 
     @Test
     public void testRegister_Failure_UsernameExists() {
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(new User("Alice", "123456789"));
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(new User("Alice", "123456789"));
 
         ResponseEntity<String> response = userController.register("Alice", "pass123");
 
@@ -548,8 +548,8 @@ public class UserStructuralTest {
         testUser.setId(1L);
         Principal principal = () -> "Alice";
 
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(userRepository.save(any(User.class))).thenReturn(testUser);
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(userDAO.save(any(User.class))).thenReturn(testUser);
 
         ResponseEntity<String> response = userController.updateUserInfo(
                 principal,
@@ -560,8 +560,8 @@ public class UserStructuralTest {
         Assertions.assertEquals(HttpStatus.OK, response.getStatusCode());
         Assertions.assertEquals("User info updated", response.getBody());
         Assertions.assertEquals("NewAlice", testUser.getUsername());
-        verify(userRepository, times(1)).findByUsername("Alice");
-        verify(userRepository, times(1)).save(testUser);
+        verify(userDAO, times(1)).findByUsername("Alice");
+        verify(userDAO, times(1)).save(testUser);
     }
 
     @Test
@@ -570,8 +570,8 @@ public class UserStructuralTest {
         testUser.setId(1L);
         Principal principal = () -> "Alice";
 
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(userRepository.save(any(User.class))).thenReturn(testUser);
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(userDAO.save(any(User.class))).thenReturn(testUser);
 
         ResponseEntity<String> response = userController.updateUserInfo(
                 principal,
@@ -585,8 +585,8 @@ public class UserStructuralTest {
         Assertions.assertTrue(PasswordUtils.verify("newPassword456", testUser.getPassword()));
 
         // Verify that repository methods were called
-        verify(userRepository, times(1)).findByUsername("Alice");
-        verify(userRepository, times(1)).save(testUser);
+        verify(userDAO, times(1)).findByUsername("Alice");
+        verify(userDAO, times(1)).save(testUser);
     }
 
     @Test
@@ -596,8 +596,8 @@ public class UserStructuralTest {
         Principal principal = () -> "Alice";
 
         String originalPassword = testUser.getPassword();
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(userRepository.save(any(User.class))).thenReturn(testUser);
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(userDAO.save(any(User.class))).thenReturn(testUser);
 
         ResponseEntity<String> response = userController.updateUserInfo(
                 principal,
@@ -610,8 +610,8 @@ public class UserStructuralTest {
         Assertions.assertEquals("Alice", testUser.getUsername());
         Assertions.assertEquals(originalPassword, testUser.getPassword());
 
-        verify(userRepository, times(1)).findByUsername("Alice");
-        verify(userRepository, times(1)).save(testUser);
+        verify(userDAO, times(1)).findByUsername("Alice");
+        verify(userDAO, times(1)).save(testUser);
     }
 
     @Test
@@ -621,8 +621,8 @@ public class UserStructuralTest {
         Principal principal = () -> "Alice";
 
         String originalPassword = testUser.getPassword();
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(userRepository.save(any(User.class))).thenReturn(testUser);
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(userDAO.save(any(User.class))).thenReturn(testUser);
 
         ResponseEntity<String> response = userController.updateUserInfo(
                 principal,
@@ -635,8 +635,8 @@ public class UserStructuralTest {
         Assertions.assertEquals("NewAlice", testUser.getUsername());
         Assertions.assertEquals(originalPassword, testUser.getPassword()); // password unchanged
 
-        verify(userRepository, times(1)).findByUsername("Alice");
-        verify(userRepository, times(1)).save(testUser);
+        verify(userDAO, times(1)).findByUsername("Alice");
+        verify(userDAO, times(1)).save(testUser);
     }
 
     @Test
@@ -651,14 +651,14 @@ public class UserStructuralTest {
         Assertions.assertEquals(HttpStatus.UNAUTHORIZED, response.getStatusCode());
         Assertions.assertEquals("Not logged in", response.getBody());
 
-        verify(userRepository, never()).findByUsername(any());
-        verify(userRepository, never()).save(any());
+        verify(userDAO, never()).findByUsername(any());
+        verify(userDAO, never()).save(any());
     }
 
     @Test
     public void testUpdateUserInfo_NotFound_UserNotExists() {
         Principal principal = () -> "Bob";
-        Mockito.when(userRepository.findByUsername("Bob")).thenReturn(null);
+        Mockito.when(userDAO.findByUsername("Bob")).thenReturn(null);
 
         ResponseEntity<String> response = userController.updateUserInfo(
                 principal,
@@ -669,8 +669,8 @@ public class UserStructuralTest {
         Assertions.assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
         Assertions.assertEquals("User not found", response.getBody());
 
-        verify(userRepository, times(1)).findByUsername("Bob");
-        verify(userRepository, never()).save(any());
+        verify(userDAO, times(1)).findByUsername("Bob");
+        verify(userDAO, never()).save(any());
     }
 
     @Test
@@ -726,7 +726,7 @@ public class UserStructuralTest {
         testUser.getAccounts().add(creditCard);
         testUser.getAccounts().add(borrowing);
 
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
 
         ResponseEntity<Map<String, Object>> response = userController.getUserAssets(principal);
 
@@ -756,7 +756,7 @@ public class UserStructuralTest {
         // totalBorrowing = 1000
         Assertions.assertEquals(0, BigDecimal.valueOf(1000).compareTo((BigDecimal) body.get("totalBorrowing")));
 
-        verify(userRepository, times(1)).findByUsername("Alice");
+        verify(userDAO, times(1)).findByUsername("Alice");
     }
 
     @Test
@@ -764,7 +764,7 @@ public class UserStructuralTest {
         User testUser = new User("Alice", PasswordUtils.hash("pass123"));
         testUser.setId(1L);
         Principal principal = () -> "Alice";
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
 
         ResponseEntity<Map<String, Object>> response = userController.getUserAssets(principal);
 
@@ -779,7 +779,7 @@ public class UserStructuralTest {
         Assertions.assertEquals(0, BigDecimal.ZERO.compareTo((BigDecimal) body.get("totalLending")));
         Assertions.assertEquals(0, BigDecimal.ZERO.compareTo((BigDecimal) body.get("totalBorrowing")));
 
-        verify(userRepository, times(1)).findByUsername("Alice");
+        verify(userDAO, times(1)).findByUsername("Alice");
     }
 
     @Test
@@ -814,7 +814,7 @@ public class UserStructuralTest {
         testUser.getAccounts().add(cash);
         testUser.getAccounts().add(loan);
 
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
 
         ResponseEntity<Map<String, Object>> response = userController.getUserAssets(principal);
 
@@ -830,7 +830,7 @@ public class UserStructuralTest {
         // netAssets = 1000 - 40000 = -39000 (负数)
         Assertions.assertEquals(0, BigDecimal.valueOf(-39000).compareTo((BigDecimal) body.get("netAssets")));
 
-        verify(userRepository, times(1)).findByUsername("Alice");
+        verify(userDAO, times(1)).findByUsername("Alice");
     }
 
     @Test
@@ -846,7 +846,7 @@ public class UserStructuralTest {
     @Test
     public void testGetUserAssets_NotFound_UserNotExists() {
         Principal principal = () -> "Alice";
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(null);
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(null);
 
 
         ResponseEntity<Map<String, Object>> response = userController.getUserAssets(principal);
@@ -886,7 +886,7 @@ public class UserStructuralTest {
         testUser.getAccounts().add(cash);
         testUser.getAccounts().add(hiddenCash);
 
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
 
         ResponseEntity<Map<String, Object>> response = userController.getUserAssets(principal);
 
@@ -895,7 +895,7 @@ public class UserStructuralTest {
 
         Assertions.assertEquals(0, BigDecimal.valueOf(5000).compareTo((BigDecimal) body.get("totalAssets")));
 
-        verify(userRepository, times(1)).findByUsername("Alice");
+        verify(userDAO, times(1)).findByUsername("Alice");
     }
 
     @Test
@@ -930,7 +930,7 @@ public class UserStructuralTest {
         testUser.getAccounts().add(cash);
         testUser.getAccounts().add(excludedCash);
 
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
 
         ResponseEntity<Map<String, Object>> response = userController.getUserAssets(principal);
 
@@ -939,7 +939,7 @@ public class UserStructuralTest {
 
         Assertions.assertEquals(0, BigDecimal.valueOf(5000).compareTo((BigDecimal) body.get("totalAssets")));
 
-        verify(userRepository, times(1)).findByUsername("Alice");
+        verify(userDAO, times(1)).findByUsername("Alice");
     }
 
 }
