@@ -38,22 +38,22 @@ public class LedgerTest {
     private MockMvc mockMvc;
 
     @Autowired
-    private UserDAO userRepository;
+    private UserDAO userDAO;
 
     @Autowired
-    private LedgerCategoryDAO ledgerCategoryRepository;
+    private LedgerCategoryDAO ledgerCategoryDAO;
 
     @Autowired
-    private LedgerDAO ledgerRepository;
+    private LedgerDAO ledgerDAO;
 
     @Autowired
-    private AccountDAO accountRepository;
+    private AccountDAO accountDAO;
 
     @Autowired
-    private TransactionDAO transactionRepository;
+    private TransactionDAO transactionDAO;
 
     @Autowired
-    private BudgetDAO budgetRepository;
+    private BudgetDAO budgetDAO;
 
     private User testUser;
     private BasicAccount testAccount1;
@@ -62,15 +62,15 @@ public class LedgerTest {
     @BeforeEach
     public void setUp() {
         testUser = new User("Alice", "pass123");
-        userRepository.save(testUser);
+        userDAO.save(testUser);
 
         testAccount1 = new BasicAccount("test Account 1", BigDecimal.valueOf(1000), null, true, true, AccountType.CASH, AccountCategory.FUNDS, testUser);
         testAccount2 = new BasicAccount("test Account 2", BigDecimal.valueOf(2000), null, true, true, AccountType.DEBIT_CARD, AccountCategory.FUNDS, testUser);
-        accountRepository.save(testAccount1);
-        accountRepository.save(testAccount2);
+        accountDAO.save(testAccount1);
+        accountDAO.save(testAccount2);
         testUser.getAccounts().add(testAccount1);
         testUser.getAccounts().add(testAccount2);
-        userRepository.save(testUser);
+        userDAO.save(testUser);
 
     }
 
@@ -98,7 +98,7 @@ public class LedgerTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string("ledger created successfully"));
 
-        Ledger updateLedger = ledgerRepository.findByName("My Ledger");
+        Ledger updateLedger = ledgerDAO.findByName("My Ledger");
         Assertions.assertNotNull(updateLedger);
         Assertions.assertEquals("My Ledger", updateLedger.getName());
         Assertions.assertEquals(15, updateLedger.getCategories().size());
@@ -117,14 +117,14 @@ public class LedgerTest {
     @WithMockUser(username = "Alice")
     public void testDeleteLedger() throws Exception {
         Ledger ledger = new Ledger("To Be Deleted", testUser);
-        ledgerRepository.save(ledger);
+        ledgerDAO.save(ledger);
         testUser.getLedgers().add(ledger);
 
         LedgerCategory testCategory = new LedgerCategory("Test Category", CategoryType.EXPENSE, ledger);
         LedgerCategory testCategory2 = new LedgerCategory("Test Category 2", CategoryType.INCOME, ledger);
         ledger.getCategories().add(testCategory);
         ledger.getCategories().add(testCategory2);
-        ledgerCategoryRepository.saveAll(List.of(testCategory, testCategory2));
+        ledgerCategoryDAO.saveAll(List.of(testCategory, testCategory2));
 
 
         Transaction transaction1 = new Transfer(LocalDate.now(), null, testAccount1, testAccount2, BigDecimal.valueOf(100), ledger);
@@ -132,7 +132,7 @@ public class LedgerTest {
         Transaction transaction3 = new Transfer(LocalDate.now(), null, null, testAccount2, BigDecimal.valueOf(300), ledger);
         Transaction transaction4 = new Expense(LocalDate.now(), BigDecimal.valueOf(500), null, testAccount1,ledger, testCategory);
         Transaction transaction5 = new Income(LocalDate.now(), BigDecimal.valueOf(1000), null, testAccount2, ledger, testCategory2);
-        transactionRepository.saveAll(List.of(transaction1, transaction2, transaction3, transaction4, transaction5));
+        transactionDAO.saveAll(List.of(transaction1, transaction2, transaction3, transaction4, transaction5));
 
         // link transactions to ledger
         ledger.getTransactions().addAll(List.of(transaction1, transaction2, transaction3, transaction4, transaction5));
@@ -152,13 +152,13 @@ public class LedgerTest {
         //category with budget
         Budget budget = new Budget(BigDecimal.valueOf(1000), Budget.Period.MONTHLY, testCategory, testUser);
         testCategory.getBudgets().add(budget);
-        budgetRepository.save(budget);
+        budgetDAO.save(budget);
 
-        userRepository.save(testUser);
-        ledgerRepository.save(ledger);
-        ledgerCategoryRepository.saveAll(List.of(testCategory, testCategory2));
-        transactionRepository.saveAll(List.of(transaction1, transaction2, transaction3, transaction4, transaction5));
-        accountRepository.saveAll(List.of(testAccount1, testAccount2));
+        userDAO.save(testUser);
+        ledgerDAO.save(ledger);
+        ledgerCategoryDAO.saveAll(List.of(testCategory, testCategory2));
+        transactionDAO.saveAll(List.of(transaction1, transaction2, transaction3, transaction4, transaction5));
+        accountDAO.saveAll(List.of(testAccount1, testAccount2));
 
 
         mockMvc.perform(delete("/ledgers/"+ ledger.getId() +"/delete")
@@ -167,28 +167,28 @@ public class LedgerTest {
                 .andExpect(content().string("Ledger deleted successfully"));
 
 
-        Ledger deletedLedger = ledgerRepository.findById(ledger.getId()).orElse(null);
+        Ledger deletedLedger = ledgerDAO.findById(ledger.getId()).orElse(null);
         Assertions.assertNull(deletedLedger);
 
         // Check that transactions are deleted
-        Assertions.assertEquals(0, transactionRepository.findAll().size());
+        Assertions.assertEquals(0, transactionDAO.findAll().size());
 
-        Account updatedAccount1 = accountRepository.findById(testAccount1.getId()).orElse(null);
-        Account updatedAccount2 = accountRepository.findById(testAccount2.getId()).orElse(null);
+        Account updatedAccount1 = accountDAO.findById(testAccount1.getId()).orElse(null);
+        Account updatedAccount2 = accountDAO.findById(testAccount2.getId()).orElse(null);
         Assertions.assertEquals(0, updatedAccount1.getTransactions().size());
         Assertions.assertEquals(0, updatedAccount2.getTransactions().size());
 
         // Check that categories are deleted
-        LedgerCategory updatedCategory1 = ledgerCategoryRepository.findById(testCategory.getId()).orElse(null);
-        LedgerCategory updatedCategory2 = ledgerCategoryRepository.findById(testCategory2.getId()).orElse(null);
+        LedgerCategory updatedCategory1 = ledgerCategoryDAO.findById(testCategory.getId()).orElse(null);
+        LedgerCategory updatedCategory2 = ledgerCategoryDAO.findById(testCategory2.getId()).orElse(null);
         Assertions.assertNull(updatedCategory1);
         Assertions.assertNull(updatedCategory2);
 
         // Check that budget is deleted
-        Budget updatedBudget = budgetRepository.findById(budget.getId()).orElse(null);
+        Budget updatedBudget = budgetDAO.findById(budget.getId()).orElse(null);
         Assertions.assertNull(updatedBudget);
 
-        User updatedUser = userRepository.findById(testUser.getId()).orElse(null);
+        User updatedUser = userDAO.findById(testUser.getId()).orElse(null);
         Assertions.assertEquals(0, updatedUser.getLedgers().size());
     }
 
@@ -196,29 +196,29 @@ public class LedgerTest {
     @WithMockUser(username = "Alice")
     public void testCopyLedger() throws Exception {
         Ledger ledger = new Ledger("Test Ledger", testUser);
-        ledgerRepository.save(ledger);
+        ledgerDAO.save(ledger);
         testUser.getLedgers().add(ledger);
 
         LedgerCategory testCategory = new LedgerCategory("Test Category", CategoryType.EXPENSE, ledger);
         LedgerCategory testCategory2 = new LedgerCategory("Test Category 2", CategoryType.INCOME, ledger);
         ledger.getCategories().add(testCategory);
         ledger.getCategories().add(testCategory2);
-        ledgerCategoryRepository.saveAll(List.of(testCategory, testCategory2));
+        ledgerCategoryDAO.saveAll(List.of(testCategory, testCategory2));
 
         mockMvc.perform(post("/ledgers/" + ledger.getId() + "/copy")
                         .principal(() -> "Alice"))
                 .andExpect(status().isOk())
                 .andExpect(content().string("copy ledger"));
 
-        User updatedUser = userRepository.findById(testUser.getId()).orElse(null);
+        User updatedUser = userDAO.findById(testUser.getId()).orElse(null);
         Assertions.assertEquals(2, updatedUser.getLedgers().size());
 
-        Ledger copiedLedger = ledgerRepository.findByName(ledger.getName() + " Copy");
+        Ledger copiedLedger = ledgerDAO.findByName(ledger.getName() + " Copy");
         Assertions.assertNotNull(copiedLedger);
         Assertions.assertEquals(2, copiedLedger.getCategories().size());
 
-        LedgerCategory copiedCategory1 = ledgerCategoryRepository.findByLedgerAndName(copiedLedger, "Test Category");
-        LedgerCategory copiedCategory2 = ledgerCategoryRepository.findByLedgerAndName(copiedLedger, "Test Category 2");
+        LedgerCategory copiedCategory1 = ledgerCategoryDAO.findByLedgerAndName(copiedLedger, "Test Category");
+        LedgerCategory copiedCategory2 = ledgerCategoryDAO.findByLedgerAndName(copiedLedger, "Test Category 2");
         Assertions.assertNotNull(copiedCategory1);
         Assertions.assertNotNull(copiedCategory2);
 
@@ -229,11 +229,11 @@ public class LedgerTest {
     @WithMockUser(username = "Alice")
     public void testRenameLedger() throws Exception {
         Ledger ledger = new Ledger("Test Ledger", testUser);
-        ledgerRepository.save(ledger);
+        ledgerDAO.save(ledger);
         testUser.getLedgers().add(ledger);
 
         Ledger anotherLedger = new Ledger("Another Ledger", testUser);
-        ledgerRepository.save(anotherLedger);
+        ledgerDAO.save(anotherLedger);
         testUser.getLedgers().add(anotherLedger);
 
         mockMvc.perform(put("/ledgers/" + ledger.getId() + "/rename")
@@ -260,7 +260,7 @@ public class LedgerTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string("Ledger renamed successfully"));
 
-        Ledger renamedLedger = ledgerRepository.findById(ledger.getId()).orElse(null);
+        Ledger renamedLedger = ledgerDAO.findById(ledger.getId()).orElse(null);
         Assertions.assertEquals("Renamed Ledger", renamedLedger.getName());
     }
 
@@ -269,10 +269,10 @@ public class LedgerTest {
     @WithMockUser(username = "Alice")
     public void testGetAllLedgers() throws Exception {
         Ledger testLedger = new Ledger("Test Ledger", testUser);
-        ledgerRepository.save(testLedger);
+        ledgerDAO.save(testLedger);
         testUser.getLedgers().add(testLedger);
         Ledger testLedger1 = new Ledger("Another Ledger", testUser);
-        ledgerRepository.save(testLedger1);
+        ledgerDAO.save(testLedger1);
         testUser.getLedgers().add(testLedger1);
 
         mockMvc.perform(get("/ledgers/all-ledgers")
@@ -288,7 +288,7 @@ public class LedgerTest {
     @WithMockUser(username = "Alice")
     public void testGetLedgerTransactionsForMonth_WithMonth() throws Exception {
         Ledger testLedger = new Ledger("Test Ledger", testUser);
-        ledgerRepository.save(testLedger);
+        ledgerDAO.save(testLedger);
         testUser.getLedgers().add(testLedger);
 
         Transaction tx1 = new Transfer(LocalDate.of(2025, 10, 5),
@@ -298,7 +298,7 @@ public class LedgerTest {
                 BigDecimal.valueOf(100),
                 testLedger
         );
-        transactionRepository.save(tx1);
+        transactionDAO.save(tx1);
         testAccount1.addTransaction(tx1);
         testAccount2.addTransaction(tx1);
         testLedger.getTransactions().add(tx1);
@@ -310,14 +310,14 @@ public class LedgerTest {
                 BigDecimal.valueOf(50),
                 testLedger
         );
-        transactionRepository.save(tx2);
+        transactionDAO.save(tx2);
         testAccount1.addTransaction(tx2);
         testAccount2.addTransaction(tx2);
         testLedger.getTransactions().add(tx2);
 
-        accountRepository.save(testAccount1);
-        accountRepository.save(testAccount2);
-        ledgerRepository.save(testLedger);
+        accountDAO.save(testAccount1);
+        accountDAO.save(testAccount2);
+        ledgerDAO.save(testLedger);
 
         mockMvc.perform(get("/ledgers/{ledgerId}/all-transactions-for-month", testLedger.getId())
                         .principal(() -> "Alice")
@@ -333,7 +333,7 @@ public class LedgerTest {
     @WithMockUser(username = "Alice")
     public void testGetLedgerTransactionsForMonth_WithoutMonth() throws Exception {
         Ledger testLedger = new Ledger("Test Ledger", testUser);
-        ledgerRepository.save(testLedger);
+        ledgerDAO.save(testLedger);
         testUser.getLedgers().add(testLedger);
 
         Transaction tx1 = new Transfer(LocalDate.now(),
@@ -343,7 +343,7 @@ public class LedgerTest {
                 BigDecimal.valueOf(100),
                 testLedger
         );
-        transactionRepository.save(tx1);
+        transactionDAO.save(tx1);
         testAccount1.addTransaction(tx1);
         testAccount2.addTransaction(tx1);
         testLedger.getTransactions().add(tx1);
@@ -355,14 +355,14 @@ public class LedgerTest {
                 BigDecimal.valueOf(50),
                 testLedger
         );
-        transactionRepository.save(tx2);
+        transactionDAO.save(tx2);
         testAccount1.addTransaction(tx2);
         testAccount2.addTransaction(tx2);
         testLedger.getTransactions().add(tx2);
 
-        accountRepository.save(testAccount1);
-        accountRepository.save(testAccount2);
-        ledgerRepository.save(testLedger);
+        accountDAO.save(testAccount1);
+        accountDAO.save(testAccount2);
+        ledgerDAO.save(testLedger);
 
         mockMvc.perform(get("/ledgers/{ledgerId}/all-transactions-for-month", testLedger.getId())
                         .principal(() -> "Alice"))
@@ -377,27 +377,27 @@ public class LedgerTest {
     @WithMockUser(username = "Alice")
     public void testGetLedgerCategories() throws Exception {
         Ledger testLedger = new Ledger("Test Ledger", testUser);
-        ledgerRepository.save(testLedger);
+        ledgerDAO.save(testLedger);
         testUser.getLedgers().add(testLedger);
 
         LedgerCategory foodCategory = new LedgerCategory("Food", CategoryType.EXPENSE, testLedger);
-        ledgerCategoryRepository.save(foodCategory);
+        ledgerCategoryDAO.save(foodCategory);
         testLedger.getCategories().add(foodCategory);
 
         LedgerCategory transportCategory = new LedgerCategory("Transport", CategoryType.EXPENSE, testLedger);
-        ledgerCategoryRepository.save(transportCategory);
+        ledgerCategoryDAO.save(transportCategory);
         testLedger.getCategories().add(transportCategory);
 
         LedgerCategory lunchCategory = new LedgerCategory("Lunch", CategoryType.EXPENSE, testLedger);
-        ledgerCategoryRepository.save(lunchCategory);
+        ledgerCategoryDAO.save(lunchCategory);
         testLedger.getCategories().add(lunchCategory);
         lunchCategory.setParent(foodCategory);
         foodCategory.getChildren().add(lunchCategory);
 
-        ledgerCategoryRepository.save(foodCategory);
-        ledgerCategoryRepository.save(transportCategory);
-        ledgerCategoryRepository.save(lunchCategory);
-        ledgerRepository.save(testLedger);
+        ledgerCategoryDAO.save(foodCategory);
+        ledgerCategoryDAO.save(transportCategory);
+        ledgerCategoryDAO.save(lunchCategory);
+        ledgerDAO.save(testLedger);
 
 
         mockMvc.perform(get("/ledgers/{ledgerId}/categories", testLedger.getId())
@@ -414,27 +414,27 @@ public class LedgerTest {
     @WithMockUser(username = "Alice")
     public void testGetMonthlySummary() throws Exception {
         Ledger testLedger = new Ledger("Test Ledger", testUser);
-        ledgerRepository.save(testLedger);
+        ledgerDAO.save(testLedger);
         testUser.getLedgers().add(testLedger);
 
         Transaction tx1=new Expense(LocalDate.of(2025,6,5), BigDecimal.valueOf(320), null, testAccount1,testLedger,null);
-        transactionRepository.save(tx1);
+        transactionDAO.save(tx1);
         testLedger.getTransactions().add(tx1);
         testAccount1.addTransaction(tx1);
 
         Transaction tx2=new Income(LocalDate.of(2025,6,5), BigDecimal.valueOf(500), null, testAccount2,testLedger,null);
-        transactionRepository.save(tx2);
+        transactionDAO.save(tx2);
         testLedger.getTransactions().add(tx2);
         testAccount2.addTransaction(tx2);
 
 
         Transaction tx3=new Expense(LocalDate.now(), BigDecimal.valueOf(320), null, testAccount1,testLedger,null);
-        transactionRepository.save(tx3);
+        transactionDAO.save(tx3);
         testLedger.getTransactions().add(tx3);
         testAccount1.addTransaction(tx3);
 
         Transaction tx4=new Income(LocalDate.now(), BigDecimal.valueOf(500), null, testAccount2,testLedger,null);
-        transactionRepository.save(tx4);
+        transactionDAO.save(tx4);
         testLedger.getTransactions().add(tx4);
         testAccount2.addTransaction(tx4);
 
