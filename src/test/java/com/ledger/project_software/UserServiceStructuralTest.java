@@ -106,7 +106,7 @@ public class UserServiceStructuralTest {
 
         BorrowingAccount borrowing1 = new BorrowingAccount(
                 "Borrow from Friend A",
-                BigDecimal.valueOf(2000),
+                BigDecimal.valueOf(2000), //borrowing amount
                 null,
                 true,  // includedInNetAsset
                 true, // selectable

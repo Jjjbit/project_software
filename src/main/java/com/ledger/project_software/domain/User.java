@@ -79,8 +79,7 @@ public class User {
         return accounts.stream()
                 .filter(account -> account instanceof BorrowingAccount)
                 .filter(account -> account.includedInNetAsset && !account.hidden)
-                .filter(account -> account.getBalance().compareTo(BigDecimal.ZERO) > 0)
-                .map(Account::getBalance)
+                .map(account -> ((BorrowingAccount) account).getBorrowingAmount())
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
