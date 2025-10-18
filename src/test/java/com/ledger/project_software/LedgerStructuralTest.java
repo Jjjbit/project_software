@@ -29,22 +29,22 @@ import static org.mockito.ArgumentMatchers.any;
 @ExtendWith(MockitoExtension.class) // inizializza i mock e gli injectMocks
 public class LedgerStructuralTest {
     @Mock
-    private UserDAO userRepository; //mock del repository per simulare il comportamento senza collegarsi al database
+    private UserDAO userDAO; //mock del repository per simulare il comportamento senza collegarsi al database
 
     @Mock
-    private LedgerDAO ledgerRepository;
+    private LedgerDAO ledgerDAO;
 
     @Mock
-    private LedgerCategoryDAO ledgerCategoryRepository;
+    private LedgerCategoryDAO ledgerCategoryDAO;
 
     @Mock
-    private CategoryDAO categoryRepository;
+    private CategoryDAO categoryDAO;
 
     @Mock
-    private AccountDAO accountRepository;
+    private AccountDAO accountDAO;
 
     @Mock
-    private TransactionDAO transactionRepository;
+    private TransactionDAO transactionDAO;
 
 
     @InjectMocks
@@ -80,46 +80,46 @@ public class LedgerStructuralTest {
 
         List<Category> templateCategories = List.of(parentCategory);
 
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(ledgerRepository.findByName("New Ledger")).thenReturn(null);
-        Mockito.when(categoryRepository.findByParentIsNull()).thenReturn(templateCategories);
-        Mockito.when(ledgerRepository.save(any(Ledger.class))).thenAnswer(i -> i.getArguments()[0]);
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(ledgerDAO.findByName("New Ledger")).thenReturn(null);
+        Mockito.when(categoryDAO.findByParentIsNull()).thenReturn(templateCategories);
+        Mockito.when(ledgerDAO.save(any(Ledger.class))).thenAnswer(i -> i.getArguments()[0]);
 
         ResponseEntity<String> response = ledgerController.createLedger("New Ledger", principal);
 
         Assertions.assertEquals(HttpStatus.OK, response.getStatusCode());
         Assertions.assertEquals("ledger created successfully", response.getBody());
-        verify(userRepository, times(1)).findByUsername("Alice");
-        verify(ledgerRepository, times(1)).findByName("New Ledger");
-        verify(categoryRepository, times(1)).findByParentIsNull();
-        verify(ledgerRepository, times(1)).save(any(Ledger.class));
+        verify(userDAO, times(1)).findByUsername("Alice");
+        verify(ledgerDAO, times(1)).findByName("New Ledger");
+        verify(categoryDAO, times(1)).findByParentIsNull();
+        verify(ledgerDAO, times(1)).save(any(Ledger.class));
     }
 
     @Test
     public void testCreateLedger_Unauthorized_UserNotFound() {
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(null);
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(null);
 
         ResponseEntity<String> response = ledgerController.createLedger("New Ledger", principal);
 
         Assertions.assertEquals(HttpStatus.UNAUTHORIZED, response.getStatusCode());
         Assertions.assertEquals("User not found", response.getBody());
-        verify(userRepository, times(1)).findByUsername("Alice");
-        verify(ledgerRepository, never()).save(any(Ledger.class));
+        verify(userDAO, times(1)).findByUsername("Alice");
+        verify(ledgerDAO, never()).save(any(Ledger.class));
     }
 
     @Test
     public void testCreateLedger_Conflict_NameExists() {
         Ledger existingLedger = new Ledger("New Ledger", testUser);
 
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(ledgerRepository.findByName("New Ledger")).thenReturn(existingLedger);
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(ledgerDAO.findByName("New Ledger")).thenReturn(existingLedger);
 
         ResponseEntity<String> response = ledgerController.createLedger("New Ledger", principal);
 
         Assertions.assertEquals(HttpStatus.CONFLICT, response.getStatusCode());
         Assertions.assertEquals("Ledger name already exists", response.getBody());
-        verify(ledgerRepository, times(1)).findByName("New Ledger");
-        verify(ledgerRepository, never()).save(any(Ledger.class));
+        verify(ledgerDAO, times(1)).findByName("New Ledger");
+        verify(ledgerDAO, never()).save(any(Ledger.class));
     }
 
     @Test
@@ -138,41 +138,41 @@ public class LedgerStructuralTest {
         parent.getChildren().add(child1);
         parent.getChildren().add(child2);
 
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(ledgerRepository.findByName("New Ledger")).thenReturn(null);
-        Mockito.when(categoryRepository.findByParentIsNull()).thenReturn(List.of(parent));
-        Mockito.when(ledgerRepository.save(any(Ledger.class))).thenAnswer(i -> i.getArguments()[0]);
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(ledgerDAO.findByName("New Ledger")).thenReturn(null);
+        Mockito.when(categoryDAO.findByParentIsNull()).thenReturn(List.of(parent));
+        Mockito.when(ledgerDAO.save(any(Ledger.class))).thenAnswer(i -> i.getArguments()[0]);
 
         ResponseEntity<String> response = ledgerController.createLedger("New Ledger", principal);
 
         Assertions.assertEquals(HttpStatus.OK, response.getStatusCode());
-        verify(categoryRepository, times(1)).findByParentIsNull();
-        verify(ledgerRepository, times(1)).save(any(Ledger.class));
+        verify(categoryDAO, times(1)).findByParentIsNull();
+        verify(ledgerDAO, times(1)).save(any(Ledger.class));
     }
 
     //deleteLedger tests
     @Test
     public void testDeleteLedger_Success_NoTransactions() {
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(ledgerRepository.findById(1L)).thenReturn(Optional.of(testLedger));
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(ledgerDAO.findById(1L)).thenReturn(Optional.of(testLedger));
 
         ResponseEntity<String> response = ledgerController.deleteLedger(1L, principal);
 
         Assertions.assertEquals(HttpStatus.OK, response.getStatusCode());
         Assertions.assertEquals("Ledger deleted successfully", response.getBody());
-        verify(ledgerRepository, times(1)).delete(testLedger);
+        verify(ledgerDAO, times(1)).delete(testLedger);
     }
 
     @Test
     public void testDeleteLedger_NotFound() {
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(ledgerRepository.findById(999L)).thenReturn(Optional.empty());
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(ledgerDAO.findById(999L)).thenReturn(Optional.empty());
 
         ResponseEntity<String> response = ledgerController.deleteLedger(999L, principal);
 
         Assertions.assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
         Assertions.assertEquals("Ledger not found", response.getBody());
-        verify(ledgerRepository, never()).delete(any());
+        verify(ledgerDAO, never()).delete(any());
     }
 
     @Test
@@ -181,18 +181,18 @@ public class LedgerStructuralTest {
 
         Assertions.assertEquals(HttpStatus.UNAUTHORIZED, response.getStatusCode());
         Assertions.assertEquals("Unauthorized access", response.getBody());
-        verify(ledgerRepository, never()).delete(any());
+        verify(ledgerDAO, never()).delete(any());
     }
 
     @Test
     public void testDeleteLedger_Unauthorized_UserNotFound() {
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(null);
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(null);
 
         ResponseEntity<String> response = ledgerController.deleteLedger(1L, principal);
 
         Assertions.assertEquals(HttpStatus.UNAUTHORIZED, response.getStatusCode());
         Assertions.assertEquals("Unauthorized access", response.getBody());
-        verify(ledgerRepository, never()).delete(any());
+        verify(ledgerDAO, never()).delete(any());
     }
 
     @Test
@@ -220,17 +220,17 @@ public class LedgerStructuralTest {
         account.addTransaction(income);
         category.getTransactions().add(income);
 
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(ledgerRepository.findById(1L)).thenReturn(Optional.of(testLedger));
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(ledgerDAO.findById(1L)).thenReturn(Optional.of(testLedger));
 
         ResponseEntity<String> response = ledgerController.deleteLedger(1L, principal);
 
         Assertions.assertEquals(HttpStatus.OK, response.getStatusCode());
         Assertions.assertEquals("Ledger deleted successfully", response.getBody());
-        verify(accountRepository, times(1)).save(account);
-        verify(transactionRepository, times(1)).delete(income);
-        verify(ledgerCategoryRepository, times(1)).save(category);
-        verify(ledgerRepository, times(1)).delete(testLedger);
+        verify(accountDAO, times(1)).save(account);
+        verify(transactionDAO, times(1)).delete(income);
+        verify(ledgerCategoryDAO, times(1)).save(category);
+        verify(ledgerDAO, times(1)).delete(testLedger);
     }
 
     @Test
@@ -258,17 +258,17 @@ public class LedgerStructuralTest {
         account.addTransaction(expense);
         category.getTransactions().add(expense);
 
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(ledgerRepository.findById(1L)).thenReturn(Optional.of(testLedger));
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(ledgerDAO.findById(1L)).thenReturn(Optional.of(testLedger));
 
         ResponseEntity<String> response = ledgerController.deleteLedger(1L, principal);
 
         Assertions.assertEquals(HttpStatus.OK, response.getStatusCode());
         Assertions.assertEquals("Ledger deleted successfully", response.getBody());
-        verify(accountRepository, times(1)).save(account);
-        verify(ledgerCategoryRepository, times(1)).save(category);
-        verify(ledgerRepository, times(1)).delete(testLedger);
-        verify(transactionRepository, times(1)).delete(expense);
+        verify(accountDAO, times(1)).save(account);
+        verify(ledgerCategoryDAO, times(1)).save(category);
+        verify(ledgerDAO, times(1)).delete(testLedger);
+        verify(transactionDAO, times(1)).delete(expense);
     }
 
     @Test
@@ -298,15 +298,15 @@ public class LedgerStructuralTest {
         fromAccount.addTransaction(transfer);
         toAccount.addTransaction(transfer);
 
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(ledgerRepository.findById(1L)).thenReturn(Optional.of(testLedger));
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(ledgerDAO.findById(1L)).thenReturn(Optional.of(testLedger));
 
         ResponseEntity<String> response = ledgerController.deleteLedger(1L, principal);
 
         Assertions.assertEquals(HttpStatus.OK, response.getStatusCode());
-        verify(accountRepository, times(2)).save(any(Account.class)); // both accounts
-        verify(transactionRepository, times(1)).delete(transfer);
-        verify(ledgerRepository, times(1)).delete(testLedger);
+        verify(accountDAO, times(2)).save(any(Account.class)); // both accounts
+        verify(transactionDAO, times(1)).delete(transfer);
+        verify(ledgerDAO, times(1)).delete(testLedger);
     }
 
     @Test
@@ -320,14 +320,14 @@ public class LedgerStructuralTest {
         testLedger.getCategories().add(category1);
         testLedger.getCategories().add(category2);
 
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(ledgerRepository.findById(1L)).thenReturn(Optional.of(testLedger));
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(ledgerDAO.findById(1L)).thenReturn(Optional.of(testLedger));
 
         ResponseEntity<String> response = ledgerController.deleteLedger(1L, principal);
 
         Assertions.assertEquals(HttpStatus.OK, response.getStatusCode());
-        verify(ledgerCategoryRepository, times(2)).delete(any(LedgerCategory.class));
-        verify(ledgerRepository, times(1)).delete(testLedger);
+        verify(ledgerCategoryDAO, times(2)).delete(any(LedgerCategory.class));
+        verify(ledgerDAO, times(1)).delete(testLedger);
     }
 
     //copyLedger tests
@@ -344,16 +344,16 @@ public class LedgerStructuralTest {
         testLedger.getCategories().add(parentCategory);
         testLedger.getCategories().add(childCategory);
 
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(ledgerRepository.findById(1L)).thenReturn(Optional.of(testLedger));
-        Mockito.when(ledgerRepository.save(any(Ledger.class))).thenAnswer(i -> i.getArguments()[0]); // Simula il salvataggio
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(ledgerDAO.findById(1L)).thenReturn(Optional.of(testLedger));
+        Mockito.when(ledgerDAO.save(any(Ledger.class))).thenAnswer(i -> i.getArguments()[0]); // Simula il salvataggio
 
         ResponseEntity<String> response = ledgerController.copyLedger(1L, principal);
 
 
         Assertions.assertEquals(HttpStatus.OK, response.getStatusCode());
         Assertions.assertEquals("copy ledger", response.getBody());
-        verify(ledgerRepository, times(1)).save(any(Ledger.class));
+        verify(ledgerDAO, times(1)).save(any(Ledger.class));
     }
 
     @Test
@@ -362,12 +362,12 @@ public class LedgerStructuralTest {
 
         Assertions.assertEquals(HttpStatus.UNAUTHORIZED, response.getStatusCode());
         Assertions.assertEquals("Unauthorized access", response.getBody());
-        verify(ledgerRepository, never()).save(any());
+        verify(ledgerDAO, never()).save(any());
     }
 
     @Test
     public void testCopyLedger_BadRequest_NullLedgerId() {
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
 
         ResponseEntity<String> response = ledgerController.copyLedger(null, principal);
 
@@ -377,8 +377,8 @@ public class LedgerStructuralTest {
 
     @Test
     public void testCopyLedger_NotFound() {
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(ledgerRepository.findById(999L)).thenReturn(Optional.empty());
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(ledgerDAO.findById(999L)).thenReturn(Optional.empty());
 
         ResponseEntity<String> response = ledgerController.copyLedger(999L, principal);
 
@@ -388,7 +388,7 @@ public class LedgerStructuralTest {
 
     @Test
     public void testCopyLedger_Unauthorized_OwnerNotFound() {
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(null);
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(null);
 
         ResponseEntity<String> response = ledgerController.copyLedger(1L, principal);
 
@@ -402,8 +402,8 @@ public class LedgerStructuralTest {
         anotherUser.setId(2L);
         testLedger.setOwner(anotherUser);
 
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(ledgerRepository.findById(1L)).thenReturn(Optional.of(testLedger));
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(ledgerDAO.findById(1L)).thenReturn(Optional.of(testLedger));
 
         ResponseEntity<String> response = ledgerController.copyLedger(1L, principal);
 
@@ -431,35 +431,35 @@ public class LedgerStructuralTest {
         testLedger.getCategories().add(child1);
         testLedger.getCategories().add(child2);
 
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(ledgerRepository.findById(1L)).thenReturn(Optional.of(testLedger));
-        Mockito.when(ledgerRepository.save(any(Ledger.class))).thenAnswer(i -> i.getArguments()[0]);
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(ledgerDAO.findById(1L)).thenReturn(Optional.of(testLedger));
+        Mockito.when(ledgerDAO.save(any(Ledger.class))).thenAnswer(i -> i.getArguments()[0]);
 
         ResponseEntity<String> response = ledgerController.copyLedger(1L, principal);
 
         Assertions.assertEquals(HttpStatus.OK, response.getStatusCode());
-        verify(ledgerRepository, times(1)).save(any(Ledger.class));
+        verify(ledgerDAO, times(1)).save(any(Ledger.class));
     }
 
     //renameLedger tests
     @Test
     public void testRenameLedger_Success() {
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(ledgerRepository.findById(1L)).thenReturn(Optional.of(testLedger));
-        Mockito.when(ledgerRepository.findByName("New Name")).thenReturn(null);
-        Mockito.when(ledgerRepository.save(any(Ledger.class))).thenAnswer(i -> i.getArguments()[0]);
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(ledgerDAO.findById(1L)).thenReturn(Optional.of(testLedger));
+        Mockito.when(ledgerDAO.findByName("New Name")).thenReturn(null);
+        Mockito.when(ledgerDAO.save(any(Ledger.class))).thenAnswer(i -> i.getArguments()[0]);
 
         ResponseEntity<String> response = ledgerController.renameLedger(1L, "New Name", principal);
 
         Assertions.assertEquals(HttpStatus.OK, response.getStatusCode());
         Assertions.assertEquals("Ledger renamed successfully", response.getBody());
         Assertions.assertEquals("New Name", testLedger.getName());
-        verify(ledgerRepository, times(1)).save(testLedger);
+        verify(ledgerDAO, times(1)).save(testLedger);
     }
 
     @Test
     public void testRenameLedger_BadRequest_NullLedgerId() {
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
 
         ResponseEntity<String> response = ledgerController.renameLedger(null, "New Name", principal);
 
@@ -477,8 +477,8 @@ public class LedgerStructuralTest {
 
     @Test
     public void testRenameLedger_NotFound() {
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(ledgerRepository.findById(999L)).thenReturn(Optional.empty());
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(ledgerDAO.findById(999L)).thenReturn(Optional.empty());
 
         ResponseEntity<String> response = ledgerController.renameLedger(999L, "New Name", principal);
 
@@ -488,7 +488,7 @@ public class LedgerStructuralTest {
 
     @Test
     public void testRenameLedger_Unauthorized_OwnerNotFound() {
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(null);
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(null);
 
         ResponseEntity<String> response = ledgerController.renameLedger(1L, "New Name", principal);
 
@@ -501,9 +501,9 @@ public class LedgerStructuralTest {
         Ledger anotherLedger = new Ledger("Existing Name", testUser);
         anotherLedger.setId(2L);
 
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(ledgerRepository.findById(1L)).thenReturn(Optional.of(testLedger));
-        Mockito.when(ledgerRepository.findByName("Existing Name")).thenReturn(anotherLedger);
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(ledgerDAO.findById(1L)).thenReturn(Optional.of(testLedger));
+        Mockito.when(ledgerDAO.findByName("Existing Name")).thenReturn(anotherLedger);
 
         ResponseEntity<String> response = ledgerController.renameLedger(1L, "Existing Name", principal);
 
@@ -513,9 +513,9 @@ public class LedgerStructuralTest {
 
     @Test
     public void testRenameLedger_Success_SameNameSameLedger() {
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(ledgerRepository.findById(1L)).thenReturn(Optional.of(testLedger));
-        Mockito.when(ledgerRepository.findByName("Test Ledger")).thenReturn(testLedger);
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(ledgerDAO.findById(1L)).thenReturn(Optional.of(testLedger));
+        Mockito.when(ledgerDAO.findByName("Test Ledger")).thenReturn(testLedger);
 
         ResponseEntity<String> response = ledgerController.renameLedger(1L, "Test Ledger", principal);
 
@@ -529,8 +529,8 @@ public class LedgerStructuralTest {
         anotherUser.setId(2L);
         testLedger.setOwner(anotherUser);
 
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(ledgerRepository.findById(1L)).thenReturn(Optional.of(testLedger));
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(ledgerDAO.findById(1L)).thenReturn(Optional.of(testLedger));
 
         ResponseEntity<String> response = ledgerController.renameLedger(1L, "New Name", principal);
 
@@ -540,8 +540,8 @@ public class LedgerStructuralTest {
 
     @Test
     public void testRenameLedger_BadRequest_NullName() {
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(ledgerRepository.findById(1L)).thenReturn(Optional.of(testLedger));
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(ledgerDAO.findById(1L)).thenReturn(Optional.of(testLedger));
 
         ResponseEntity<String> response = ledgerController.renameLedger(1L, null, principal);
 
@@ -551,8 +551,8 @@ public class LedgerStructuralTest {
 
     @Test
     public void testRenameLedger_BadRequest_EmptyName() {
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(ledgerRepository.findById(1L)).thenReturn(Optional.of(testLedger));
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(ledgerDAO.findById(1L)).thenReturn(Optional.of(testLedger));
 
         ResponseEntity<String> response = ledgerController.renameLedger(1L, " ", principal);
 
@@ -567,15 +567,15 @@ public class LedgerStructuralTest {
         Ledger ledger2 = new Ledger("Ledger 2", testUser);
         List<Ledger> ledgers = List.of(ledger1, ledger2);
 
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(ledgerRepository.findByOwner(testUser)).thenReturn(ledgers);
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(ledgerDAO.findByOwner(testUser)).thenReturn(ledgers);
 
         ResponseEntity<List<Ledger>> response = ledgerController.getAllLedgers(principal);
 
         Assertions.assertEquals(HttpStatus.OK, response.getStatusCode());
         Assertions.assertNotNull(response.getBody());
         Assertions.assertEquals(2, response.getBody().size());
-        verify(ledgerRepository, times(1)).findByOwner(testUser);
+        verify(ledgerDAO, times(1)).findByOwner(testUser);
     }
 
 
@@ -589,7 +589,7 @@ public class LedgerStructuralTest {
 
     @Test
     public void testGetAllLedgers_Unauthorized_UserNotFound() {
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(null);
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(null);
 
         ResponseEntity<List<Ledger>> response = ledgerController.getAllLedgers(principal);
 
@@ -599,8 +599,8 @@ public class LedgerStructuralTest {
 
     @Test
     public void testGetAllLedgers_Success_EmptyList() {
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(ledgerRepository.findByOwner(testUser)).thenReturn(List.of());
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(ledgerDAO.findByOwner(testUser)).thenReturn(List.of());
 
         ResponseEntity<List<Ledger>> response = ledgerController.getAllLedgers(principal);
 
@@ -621,9 +621,9 @@ public class LedgerStructuralTest {
                 null);
         List<Transaction> transactions = List.of(tx1);
 
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(ledgerRepository.findById(1L)).thenReturn(Optional.of(testLedger));
-        Mockito.when(transactionRepository.findByLedgerIdAndOwnerId(
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(ledgerDAO.findById(1L)).thenReturn(Optional.of(testLedger));
+        Mockito.when(transactionDAO.findByLedgerIdAndOwnerId(
                         eq(1L), eq(1L), any(LocalDate.class), any(LocalDate.class)))
                 .thenReturn(transactions);
 
@@ -644,9 +644,9 @@ public class LedgerStructuralTest {
                 null);
         List<Transaction> transactions = List.of(tx1);
 
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(ledgerRepository.findById(1L)).thenReturn(Optional.of(testLedger));
-        Mockito.when(transactionRepository.findByLedgerIdAndOwnerId(
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(ledgerDAO.findById(1L)).thenReturn(Optional.of(testLedger));
+        Mockito.when(transactionDAO.findByLedgerIdAndOwnerId(
                         eq(1L),
                         eq(1L),
                         any(LocalDate.class),
@@ -669,7 +669,7 @@ public class LedgerStructuralTest {
 
     @Test
     public void testGetLedgerTransactionsForMonth_Unauthorized_UserNotFound() {
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(null);
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(null);
 
         ResponseEntity<List<Transaction>> response = ledgerController.getLedgerTransactionsForMonth(1L, principal, YearMonth.now());
 
@@ -678,8 +678,8 @@ public class LedgerStructuralTest {
 
     @Test
     public void testGetLedgerTransactionsForMonth_NotFound() {
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(ledgerRepository.findById(999L)).thenReturn(Optional.empty());
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(ledgerDAO.findById(999L)).thenReturn(Optional.empty());
 
         Assertions.assertThrows(ResponseStatusException.class, () ->
                 ledgerController.getLedgerTransactionsForMonth(999L, principal, YearMonth.now())
@@ -692,8 +692,8 @@ public class LedgerStructuralTest {
         anotherUser.setId(2L);
         testLedger.setOwner(anotherUser);
 
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(ledgerRepository.findById(1L)).thenReturn(Optional.of(testLedger));
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(ledgerDAO.findById(1L)).thenReturn(Optional.of(testLedger));
 
         ResponseEntity<List<Transaction>> response = ledgerController.getLedgerTransactionsForMonth(1L, principal, YearMonth.now());
 
@@ -702,7 +702,7 @@ public class LedgerStructuralTest {
 
     @Test
     public void testGetLedgerTransactionsForMonth_BadRequest_NullLedgerId() {
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
 
         ResponseEntity<List<Transaction>> response = ledgerController.getLedgerTransactionsForMonth(null, principal, YearMonth.now());
 
@@ -719,11 +719,11 @@ public class LedgerStructuralTest {
         subCategory.setId(2L);
         subCategory.setParent(parentCategory);
 
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(ledgerRepository.findById(1L)).thenReturn(Optional.of(testLedger));
-        Mockito.when(ledgerCategoryRepository.findByLedgerIdAndParentIsNull(1L))
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(ledgerDAO.findById(1L)).thenReturn(Optional.of(testLedger));
+        Mockito.when(ledgerCategoryDAO.findByLedgerIdAndParentIsNull(1L))
                 .thenReturn(List.of(parentCategory));
-        Mockito.when(ledgerCategoryRepository.findByParentId(1L))
+        Mockito.when(ledgerCategoryDAO.findByParentId(1L))
                 .thenReturn(List.of(subCategory));
 
         ResponseEntity<Map<String, Object>> response = ledgerController.getLedgerCategories(1L, principal);
@@ -748,11 +748,11 @@ public class LedgerStructuralTest {
         LedgerCategory parentCategory = new LedgerCategory("Food", CategoryType.EXPENSE, testLedger);
         parentCategory.setId(1L);
 
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(ledgerRepository.findById(1L)).thenReturn(Optional.of(testLedger));
-        Mockito.when(ledgerCategoryRepository.findByLedgerIdAndParentIsNull(1L))
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(ledgerDAO.findById(1L)).thenReturn(Optional.of(testLedger));
+        Mockito.when(ledgerCategoryDAO.findByLedgerIdAndParentIsNull(1L))
                 .thenReturn(List.of(parentCategory));
-        Mockito.when(ledgerCategoryRepository.findByParentId(1L))
+        Mockito.when(ledgerCategoryDAO.findByParentId(1L))
                 .thenReturn(List.of());
 
         ResponseEntity<Map<String, Object>> response = ledgerController.getLedgerCategories(1L, principal);
@@ -771,9 +771,9 @@ public class LedgerStructuralTest {
 
     @Test
     public void testGetLedgerCategories_Success_NoCategories() {
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(ledgerRepository.findById(1L)).thenReturn(Optional.of(testLedger));
-        Mockito.when(ledgerCategoryRepository.findByLedgerIdAndParentIsNull(1L))
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(ledgerDAO.findById(1L)).thenReturn(Optional.of(testLedger));
+        Mockito.when(ledgerCategoryDAO.findByLedgerIdAndParentIsNull(1L))
                 .thenReturn(List.of());
 
         ResponseEntity<Map<String, Object>> response = ledgerController.getLedgerCategories(1L, principal);
@@ -795,7 +795,7 @@ public class LedgerStructuralTest {
 
     @Test
     public void testGetLedgerCategories_Unauthorized_UserNotFound() {
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(null);
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(null);
 
         ResponseEntity<Map<String, Object>> response = ledgerController.getLedgerCategories(1L, principal);
 
@@ -804,8 +804,8 @@ public class LedgerStructuralTest {
 
     @Test
     public void testGetLedgerCategories_NotFound() {
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(ledgerRepository.findById(999L)).thenReturn(Optional.empty());
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(ledgerDAO.findById(999L)).thenReturn(Optional.empty());
 
         Assertions.assertThrows(ResponseStatusException.class, () ->
                 ledgerController.getLedgerCategories(999L, principal)
@@ -818,8 +818,8 @@ public class LedgerStructuralTest {
         anotherUser.setId(2L);
         testLedger.setOwner(anotherUser);
 
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(ledgerRepository.findById(1L)).thenReturn(Optional.of(testLedger));
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(ledgerDAO.findById(1L)).thenReturn(Optional.of(testLedger));
 
 
         ResponseEntity<Map<String, Object>> response = ledgerController.getLedgerCategories(1L, principal);
@@ -841,13 +841,13 @@ public class LedgerStructuralTest {
         LedgerCategory taxi = new LedgerCategory("Taxi", CategoryType.EXPENSE, testLedger);
         taxi.setId(4L);
 
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(ledgerRepository.findById(1L)).thenReturn(Optional.of(testLedger));
-        Mockito.when(ledgerCategoryRepository.findByLedgerIdAndParentIsNull(1L))
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(ledgerDAO.findById(1L)).thenReturn(Optional.of(testLedger));
+        Mockito.when(ledgerCategoryDAO.findByLedgerIdAndParentIsNull(1L))
                 .thenReturn(List.of(food, transport));
-        Mockito.when(ledgerCategoryRepository.findByParentId(1L))
+        Mockito.when(ledgerCategoryDAO.findByParentId(1L))
                 .thenReturn(List.of(lunch));
-        Mockito.when(ledgerCategoryRepository.findByParentId(2L))
+        Mockito.when(ledgerCategoryDAO.findByParentId(2L))
                 .thenReturn(List.of(taxi));
 
         ResponseEntity<Map<String, Object>> response = ledgerController.getLedgerCategories(1L, principal);
@@ -864,14 +864,14 @@ public class LedgerStructuralTest {
     public void testGetMonthlySummary_Success_WithMonth() {
         YearMonth month = YearMonth.of(2025, 06);
 
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(ledgerRepository.findById(1L)).thenReturn(Optional.of(testLedger));
-        Mockito.when(transactionRepository.sumIncomeByLedgerAndPeriod(
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(ledgerDAO.findById(1L)).thenReturn(Optional.of(testLedger));
+        Mockito.when(transactionDAO.sumIncomeByLedgerAndPeriod(
                         eq(1L),
                         any(LocalDate.class),
                         any(LocalDate.class)))
                 .thenReturn(BigDecimal.valueOf(5000));
-        Mockito.when(transactionRepository.sumExpenseByLedgerAndPeriod(
+        Mockito.when(transactionDAO.sumExpenseByLedgerAndPeriod(
                         eq(1L),
                         any(LocalDate.class),
                         any(LocalDate.class)))
@@ -891,14 +891,14 @@ public class LedgerStructuralTest {
     public void testGetMonthlySummary_Success_WithoutMonth() {
         YearMonth currentMonth = YearMonth.now();
 
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(ledgerRepository.findById(1L)).thenReturn(Optional.of(testLedger));
-        Mockito.when(transactionRepository.sumIncomeByLedgerAndPeriod(
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(ledgerDAO.findById(1L)).thenReturn(Optional.of(testLedger));
+        Mockito.when(transactionDAO.sumIncomeByLedgerAndPeriod(
                         eq(1L),
                         any(LocalDate.class),
                         any(LocalDate.class)))
                 .thenReturn(BigDecimal.valueOf(5000));
-        Mockito.when(transactionRepository.sumExpenseByLedgerAndPeriod(
+        Mockito.when(transactionDAO.sumExpenseByLedgerAndPeriod(
                         eq(1L),
                         any(LocalDate.class),
                         any(LocalDate.class)))
@@ -915,14 +915,14 @@ public class LedgerStructuralTest {
     public void testGetMonthlySummary_Success_NullValues() {
         YearMonth month = YearMonth.of(2025, 10);
 
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(ledgerRepository.findById(1L)).thenReturn(Optional.of(testLedger));
-        Mockito.when(transactionRepository.sumIncomeByLedgerAndPeriod(
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(ledgerDAO.findById(1L)).thenReturn(Optional.of(testLedger));
+        Mockito.when(transactionDAO.sumIncomeByLedgerAndPeriod(
                         eq(1L),
                         any(LocalDate.class),
                         any(LocalDate.class)))
                 .thenReturn(null);
-        Mockito.when(transactionRepository.sumExpenseByLedgerAndPeriod(
+        Mockito.when(transactionDAO.sumExpenseByLedgerAndPeriod(
                         eq(1L),
                         any(LocalDate.class),
                         any(LocalDate.class)))
@@ -939,12 +939,12 @@ public class LedgerStructuralTest {
     public void testGetMonthlySummary_Success_NoTransactions() {
         YearMonth month = YearMonth.of(2025, 10);
 
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(ledgerRepository.findById(1L)).thenReturn(Optional.of(testLedger));
-        Mockito.when(transactionRepository.sumIncomeByLedgerAndPeriod(
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(ledgerDAO.findById(1L)).thenReturn(Optional.of(testLedger));
+        Mockito.when(transactionDAO.sumIncomeByLedgerAndPeriod(
                         eq(1L), any(LocalDate.class), any(LocalDate.class)))
                 .thenReturn(BigDecimal.ZERO);
-        Mockito.when(transactionRepository.sumExpenseByLedgerAndPeriod(
+        Mockito.when(transactionDAO.sumExpenseByLedgerAndPeriod(
                         eq(1L), any(LocalDate.class), any(LocalDate.class)))
                 .thenReturn(BigDecimal.ZERO);
 
@@ -964,7 +964,7 @@ public class LedgerStructuralTest {
 
     @Test
     public void testGetMonthlySummary_Unauthorized_UserNotFound() {
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(null);
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(null);
 
         ResponseEntity<Map<String, Object>> response = ledgerController.getMonthlySummary(1L, YearMonth.now(), principal);
 
@@ -973,8 +973,8 @@ public class LedgerStructuralTest {
 
     @Test
     public void testGetMonthlySummary_NotFound() {
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(ledgerRepository.findById(999L)).thenReturn(Optional.empty());
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(ledgerDAO.findById(999L)).thenReturn(Optional.empty());
 
         Assertions.assertThrows(ResponseStatusException.class, () ->
                 ledgerController.getMonthlySummary(999L, YearMonth.now(), principal)
@@ -987,8 +987,8 @@ public class LedgerStructuralTest {
         anotherUser.setId(2L);
         testLedger.setOwner(anotherUser);
 
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(ledgerRepository.findById(1L)).thenReturn(Optional.of(testLedger));
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(ledgerDAO.findById(1L)).thenReturn(Optional.of(testLedger));
 
         ResponseEntity<Map<String, Object>> response = ledgerController.getMonthlySummary(1L, YearMonth.now(), principal);
 
@@ -997,7 +997,7 @@ public class LedgerStructuralTest {
 
     @Test
     public void testGetMonthlySummary_BadRequest_NullLedgerId() {
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
 
         ResponseEntity<Map<String, Object>> response = ledgerController.getMonthlySummary(null, YearMonth.now(), principal);
 
@@ -1008,12 +1008,12 @@ public class LedgerStructuralTest {
     public void testGetMonthlySummary_Success_LargeValues() {
         YearMonth month = YearMonth.of(2025, 10);
 
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(ledgerRepository.findById(1L)).thenReturn(Optional.of(testLedger));
-        Mockito.when(transactionRepository.sumIncomeByLedgerAndPeriod(
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(ledgerDAO.findById(1L)).thenReturn(Optional.of(testLedger));
+        Mockito.when(transactionDAO.sumIncomeByLedgerAndPeriod(
                         eq(1L), any(LocalDate.class), any(LocalDate.class)))
                 .thenReturn(BigDecimal.valueOf(999999999.99));
-        Mockito.when(transactionRepository.sumExpenseByLedgerAndPeriod(
+        Mockito.when(transactionDAO.sumExpenseByLedgerAndPeriod(
                         eq(1L), any(LocalDate.class), any(LocalDate.class)))
                 .thenReturn(BigDecimal.valueOf(888888888.88));
 
