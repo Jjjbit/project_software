@@ -54,7 +54,7 @@ public class UserService {
         return "Login successful";
     }
     @Transactional
-    public String updateUserInfo(User user, String username,String password) {
+    public void updateUserInfo(User user, String username,String password) {
         validateUser(user);
         if(username != null && !username.isEmpty()){
             if(userDAO.findByUsername(username) != null){
@@ -66,7 +66,6 @@ public class UserService {
             user.setPassword(PasswordUtils.hash(password));
         }
         userDAO.save(user);
-        return "User info updated";
     }
 
     public Map<String, Object> getUserAssets(User user) {

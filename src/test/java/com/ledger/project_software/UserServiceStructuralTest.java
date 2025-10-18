@@ -518,9 +518,8 @@ public class UserServiceStructuralTest {
         Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
         Mockito.when(userDAO.save(any(User.class))).thenReturn(testUser);
 
-        String response=userService.updateUserInfo(testUser, "NewAlice", null);
+        userService.updateUserInfo(testUser, "NewAlice", null);
 
-        assertEquals("User info updated", response);
         assertEquals("NewAlice", testUser.getUsername());
         verify(userDAO, times(1)).findByUsername("Alice");
         verify(userDAO, times(1)).findByUsername("NewAlice");
@@ -535,13 +534,12 @@ public class UserServiceStructuralTest {
         Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
         Mockito.when(userDAO.save(any(User.class))).thenReturn(testUser);
 
-        String response = userService.updateUserInfo(
+        userService.updateUserInfo(
                 testUser,
                 "NewAlice",
                 "newPassword456"
         );
 
-        assertEquals("User info updated", response);
         assertEquals("NewAlice", testUser.getUsername());
         Assertions.assertTrue(PasswordUtils.verify("newPassword456", testUser.getPassword()));
 
@@ -559,13 +557,12 @@ public class UserServiceStructuralTest {
         Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
         Mockito.when(userDAO.save(any(User.class))).thenReturn(testUser);
 
-        String response = userService.updateUserInfo(
+        userService.updateUserInfo(
                 testUser,
                 null,  // no username change
                 null   // no password change
         );
 
-        assertEquals("User info updated", response);
         assertEquals("Alice", testUser.getUsername());
         assertEquals(originalPassword, testUser.getPassword());
 
@@ -582,13 +579,12 @@ public class UserServiceStructuralTest {
         Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
         Mockito.when(userDAO.save(any(User.class))).thenReturn(testUser);
 
-        String response = userService.updateUserInfo(
+        userService.updateUserInfo(
                 testUser,
                 "NewAlice",  // change username
                 ""           // empty password, should not change
         );
 
-        assertEquals("User info updated", response);
         assertEquals("NewAlice", testUser.getUsername());
         assertEquals(originalPassword, testUser.getPassword()); // password unchanged
 
@@ -681,7 +677,7 @@ public class UserServiceStructuralTest {
 
         Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
 
-       Map<String, Object> response = userService.getUserAssets(testUser);
+        Map<String, Object> response = userService.getUserAssets(testUser);
 
         assertEquals(5, response.size());
         Assertions.assertTrue(response.containsKey("totalAssets"));
@@ -730,7 +726,6 @@ public class UserServiceStructuralTest {
     public void testGetUserAssets_Success_NegativeNetAssets() {
         User testUser = new User("Alice", PasswordUtils.hash("pass123"));
         testUser.setId(1L);
-        Principal principal = () -> "Alice";
 
         BasicAccount cash = new BasicAccount(
                 "Cash",

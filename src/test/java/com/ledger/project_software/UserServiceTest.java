@@ -1,6 +1,5 @@
 package com.ledger.project_software;
 
-import com.ledger.project_software.business.UserController;
 import com.ledger.project_software.business.UserService;
 import com.ledger.project_software.domain.*;
 import com.ledger.project_software.orm.AccountDAO;
@@ -54,7 +53,7 @@ public class UserServiceTest {
         userDAO.save(user);
 
         String response=userService.login("testuser", "securepassword");
-        Assertions.assertEquals("Login successful", response);
+        assertEquals("Login successful", response);
     }
 
     @Test
@@ -67,8 +66,8 @@ public class UserServiceTest {
         });
 
         User existingUser = userDAO.findByUsername("testuser");
-        Assertions.assertNotNull(existingUser);
-        Assertions.assertTrue(PasswordUtils.verify("securepassword", existingUser.getPassword()));
+        assertNotNull(existingUser);
+        assertTrue(PasswordUtils.verify("securepassword", existingUser.getPassword()));
     }
 
     @Test
@@ -79,9 +78,9 @@ public class UserServiceTest {
         userService.updateUserInfo(user, "updateduser", "newpassword");
 
         User updatedUser = userDAO.findByUsername("updateduser");
-        Assertions.assertNotNull(updatedUser);
-        Assertions.assertTrue(PasswordUtils.verify("newpassword", updatedUser.getPassword()));
-        Assertions.assertEquals(1, userDAO.findAll().size());
+        assertNotNull(updatedUser);
+        assertTrue(PasswordUtils.verify("newpassword", updatedUser.getPassword()));
+        assertEquals(1, userDAO.findAll().size());
     }
 
     @Test
@@ -92,8 +91,8 @@ public class UserServiceTest {
         userService.updateUserInfo(user, null, "newpassword");
 
         User updatedUser = userDAO.findByUsername("user1");
-        Assertions.assertNotNull(updatedUser);
-        Assertions.assertTrue(PasswordUtils.verify("newpassword", updatedUser.getPassword()));
+        assertNotNull(updatedUser);
+        assertTrue(PasswordUtils.verify("newpassword", updatedUser.getPassword()));
     }
 
     @Test
@@ -104,8 +103,8 @@ public class UserServiceTest {
         userService.updateUserInfo(user, null, null);
 
         User updatedUser = userDAO.findByUsername("user1");
-        Assertions.assertNotNull(updatedUser);
-        Assertions.assertTrue(PasswordUtils.verify("oldpassword", updatedUser.getPassword()));
+        assertNotNull(updatedUser);
+        assertTrue(PasswordUtils.verify("oldpassword", updatedUser.getPassword()));
     }
 
 
