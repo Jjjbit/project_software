@@ -1,5 +1,6 @@
 package com.ledger.project_software;
 
+import com.ledger.project_software.business.AccountService;
 import com.ledger.project_software.business.UserService;
 import com.ledger.project_software.domain.*;
 import com.ledger.project_software.orm.AccountDAO;
@@ -28,6 +29,8 @@ public class UserServiceTest {
     private UserDAO userDAO;
     @Autowired
     private UserService userService;
+    @Autowired
+    private AccountService accountService;
 
 
     @Test
@@ -39,18 +42,19 @@ public class UserServiceTest {
 
     @Test
     public void testRegisterDuplicateUsername(){
-        User user=new User("duplicate", "pass123");
-        userDAO.save(user);
+        userService.register("duplicate", "pass123");
 
-        assertThrows(IllegalArgumentException.class, () -> {
+        Exception exception=assertThrows(IllegalArgumentException.class, () -> {
             userService.register("duplicate", "pass123");
         });
+        String expectedMessage="Username already exists";
+        String actualMessage=exception.getMessage();
+        assertTrue(actualMessage.contains(expectedMessage));
     }
 
     @Test
-    public void testLoginWithCorrectCredentials()  {
-        User user = new User("testuser", PasswordUtils.hash("securepassword"));
-        userDAO.save(user);
+    public void testLoginWithCorrectCredentials() {
+        userService.register("testuser", "securepassword");
 
         String response=userService.login("testuser", "securepassword");
         assertEquals("Login successful", response);
@@ -58,22 +62,20 @@ public class UserServiceTest {
 
     @Test
     public void testLoginWithIncorrectCredentials(){
-        User user = new User("testuser", PasswordUtils.hash("securepassword"));
-        userDAO.save(user);
+        userService.register("testuser", "securepassword");
 
-        assertThrows(IllegalArgumentException.class, () -> {
+        Exception exception=assertThrows(IllegalArgumentException.class, () -> {
             userService.login("testuser", "wrongpassword");
         });
 
-        User existingUser = userDAO.findByUsername("testuser");
-        assertNotNull(existingUser);
-        assertTrue(PasswordUtils.verify("securepassword", existingUser.getPassword()));
+        String expectedMessage="Incorrect password";
+        String actualMessage=exception.getMessage();
+        assertTrue(actualMessage.contains(expectedMessage));
     }
 
     @Test
     public void testUpdateUserInfo_NewName() {
-        User user = new User("olduser", PasswordUtils.hash("oldpassword"));
-        userDAO.save(user);
+        User user=userService.register("user1", "oldpassword");
 
         userService.updateUserInfo(user, "updateduser", "newpassword");
 
@@ -85,8 +87,7 @@ public class UserServiceTest {
 
     @Test
     public void testUpdateUserInfo_NewPassword() {
-        User user = new User("user1", PasswordUtils.hash("oldpassword"));
-        userDAO.save(user);
+        User user = userService.register("user1", "oldpassword");
 
         userService.updateUserInfo(user, null, "newpassword");
 
@@ -97,8 +98,7 @@ public class UserServiceTest {
 
     @Test
     public void testUpdateUserInfo_NoChanges() {
-        User user = new User("user1", PasswordUtils.hash("oldpassword"));
-        userDAO.save(user);
+        User user = userService.register("user1", "oldpassword");
 
         userService.updateUserInfo(user, null, null);
 
@@ -110,56 +110,48 @@ public class UserServiceTest {
 
     @Test
     public void testGetUserAssets() {
-        User testUser = new User("Alice", PasswordUtils.hash("pass123"));
-        userDAO.save(testUser);
-
-        Account account1 = new BasicAccount("Cash Account",
+        User testUser = userService.register("Alice", "pass123");
+        accountService.createBasicAccount(testUser,
+                "Cash Account",
                 BigDecimal.valueOf(1000),
                 null,
                 true,
                 true,
                 AccountType.CASH,
-                AccountCategory.FUNDS,
-                testUser);
-        testUser.getAccounts().add(account1);
-        accountDAO.save(account1);
+                AccountCategory.FUNDS);
 
-        Account account2 = new CreditAccount("Credit Card",
+        accountService.createCreditAccount(testUser,
+                "Credit Card",
                 BigDecimal.valueOf(500), // balance
-                testUser,
                 null,
                 true,
                 true,
                 BigDecimal.valueOf(1000), // creditLimit
                 BigDecimal.valueOf(150), // currentDebt
-                null,
-                null,
+                null, //billDate
+                null, //dueDate
                 AccountType.CREDIT_CARD);
-        testUser.getAccounts().add(account2);
-        accountDAO.save(account2);
 
-        Account account3= new LendingAccount("Bob",
+        accountService.createLendingAccount(testUser,
+                "Bob",
                 BigDecimal.valueOf(300), // balance da ricevere
                 null,
                 true,
                 true,
-                testUser,
+                null,
                 LocalDate.now());
-        testUser.getAccounts().add(account3);
-        accountDAO.save(account3);
 
-        Account account4 = new BorrowingAccount("Mike",
+        accountService.createBorrowingAccount(testUser,
+                "Mike",
                 BigDecimal.valueOf(200), // balance da pagare
                 null,
                 true,
                 true,
-                testUser,
+                null,
                 LocalDate.now());
-        testUser.getAccounts().add(account4);
-        accountDAO.save(account4);
 
         Map<String, Object> response=userService.getUserAssets(testUser);
-        Assertions.assertEquals(0, BigDecimal.valueOf(1800.00).compareTo((BigDecimal)  response.get("totalAssets")));
+        Assertions.assertEquals(0, BigDecimal.valueOf(1800.00).compareTo((BigDecimal) response.get("totalAssets")));
         Assertions.assertEquals(0, BigDecimal.valueOf(350.00).compareTo((BigDecimal) response.get("totalLiabilities")));
         Assertions.assertEquals(0, BigDecimal.valueOf(1450.00).compareTo((BigDecimal) response.get("netAssets")));
         Assertions.assertEquals(0, BigDecimal.valueOf(300.00).compareTo((BigDecimal) response.get("totalLending")));
