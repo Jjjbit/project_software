@@ -29,10 +29,10 @@ public class UserTest { // Integration test between UserController and UserRepos
     private MockMvc mockMvc;
 
     @Autowired
-    private UserDAO userRepository;
+    private UserDAO userDAO;
 
     @Autowired
-    private AccountDAO accountRepository;
+    private AccountDAO accountDAO;
 
     @Test
     public void testRegisterAndVerifyInDatabase() throws Exception {
@@ -42,7 +42,7 @@ public class UserTest { // Integration test between UserController and UserRepos
                 .andExpect(status().isOk())
                 .andExpect(content().string("Registration successful"));
 
-        User savedUser = userRepository.findByUsername("newuser");
+        User savedUser = userDAO.findByUsername("newuser");
         Assertions.assertNotNull(savedUser);
         Assertions.assertTrue(PasswordUtils.verify("secure123", savedUser.getPassword()));
         Assertions.assertEquals(1, savedUser.getLedgers().size());
@@ -52,7 +52,7 @@ public class UserTest { // Integration test between UserController and UserRepos
     @Test
     public void testRegisterDuplicateUsername() throws Exception {
         User user=new User("duplicate", "pass123");
-        userRepository.save(user);
+        userDAO.save(user);
 
         mockMvc.perform(post("/users/register")
                         .param("username", "duplicate")
@@ -65,7 +65,7 @@ public class UserTest { // Integration test between UserController and UserRepos
     @Test
     public void testLoginWithCorrectCredentials() throws Exception {
         User user = new User("testuser", PasswordUtils.hash("securepassword"));
-        userRepository.save(user);
+        userDAO.save(user);
 
         mockMvc.perform(post("/users/login")
                         .param("username", "testuser")
@@ -73,7 +73,7 @@ public class UserTest { // Integration test between UserController and UserRepos
                 .andExpect(status().isOk())
                 .andExpect(content().string("Login successful"));
 
-        User existingUser = userRepository.findByUsername("testuser");
+        User existingUser = userDAO.findByUsername("testuser");
         Assertions.assertNotNull(existingUser);
         Assertions.assertTrue(PasswordUtils.verify("securepassword", existingUser.getPassword()));
     }
@@ -81,7 +81,7 @@ public class UserTest { // Integration test between UserController and UserRepos
     @Test
     public void testLoginWithIncorrectCredentials() throws Exception {
         User user = new User("testuser", PasswordUtils.hash("securepassword"));
-        userRepository.save(user);
+        userDAO.save(user);
 
         mockMvc.perform(post("/users/login")
                         .param("username", "testuser")
@@ -89,7 +89,7 @@ public class UserTest { // Integration test between UserController and UserRepos
                 .andExpect(status().isUnauthorized())
                 .andExpect(content().string("Password incorrect"));
 
-        User existingUser = userRepository.findByUsername("testuser");
+        User existingUser = userDAO.findByUsername("testuser");
         Assertions.assertNotNull(existingUser);
         Assertions.assertTrue(PasswordUtils.verify("securepassword", existingUser.getPassword()));
     }
@@ -97,7 +97,7 @@ public class UserTest { // Integration test between UserController and UserRepos
     @Test
     public void testUpdateUserInfo() throws Exception {
         User user = new User("olduser", PasswordUtils.hash("oldpassword"));
-        userRepository.save(user);
+        userDAO.save(user);
 
         mockMvc.perform(post("/users/login")
                         .param("username", "olduser")
@@ -112,16 +112,16 @@ public class UserTest { // Integration test between UserController and UserRepos
                 .andExpect(status().isOk())
                 .andExpect(content().string("User info updated"));
 
-        User updatedUser = userRepository.findByUsername("updateduser");
+        User updatedUser = userDAO.findByUsername("updateduser");
         Assertions.assertNotNull(updatedUser);
         Assertions.assertTrue(PasswordUtils.verify("newpassword", updatedUser.getPassword()));
-        Assertions.assertEquals(1, userRepository.findAll().size());
+        Assertions.assertEquals(1, userDAO.findAll().size());
     }
 
     @Test
     public void testGetUserAssets() throws Exception {
         User testUser = new User("Alice", PasswordUtils.hash("pass123"));
-        userRepository.save(testUser);
+        userDAO.save(testUser);
 
         Account account1 = new BasicAccount("Cash Account",
                 BigDecimal.valueOf(1000),
@@ -132,7 +132,7 @@ public class UserTest { // Integration test between UserController and UserRepos
                 AccountCategory.FUNDS,
                 testUser);
         testUser.getAccounts().add(account1);
-        accountRepository.save(account1);
+        accountDAO.save(account1);
 
         Account account2 = new CreditAccount("Credit Card",
                 BigDecimal.valueOf(500), // balance
@@ -146,7 +146,7 @@ public class UserTest { // Integration test between UserController and UserRepos
                 null,
                 AccountType.CREDIT_CARD);
         testUser.getAccounts().add(account2);
-        accountRepository.save(account2);
+        accountDAO.save(account2);
 
         Account account3= new LendingAccount("Bob",
                 BigDecimal.valueOf(300), // balance da ricevere
@@ -156,7 +156,7 @@ public class UserTest { // Integration test between UserController and UserRepos
                 testUser,
                 LocalDate.now());
         testUser.getAccounts().add(account3);
-        accountRepository.save(account3);
+        accountDAO.save(account3);
 
         Account account4 = new BorrowingAccount("Mike",
                 BigDecimal.valueOf(200), // balance da pagare
@@ -166,7 +166,7 @@ public class UserTest { // Integration test between UserController and UserRepos
                 testUser,
                 LocalDate.now());
         testUser.getAccounts().add(account4);
-        accountRepository.save(account4);
+        accountDAO.save(account4);
 
         mockMvc.perform(post("/users/login")
                         .param("username", "Alice")
