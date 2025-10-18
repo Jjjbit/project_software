@@ -31,16 +31,16 @@ import static org.junit.jupiter.api.Assertions.*;
 @ExtendWith(MockitoExtension.class)
 public class BudgetStructuralTest {
     @Mock
-    private UserDAO userRepository;
+    private UserDAO userDAO;
 
     @Mock
-    private BudgetDAO budgetRepository;
+    private BudgetDAO budgetDAO;
 
     @Mock
-    private LedgerCategoryDAO ledgerCategoryRepository;
+    private LedgerCategoryDAO ledgerCategoryDAO;
 
     @Mock
-    private TransactionDAO transactionRepository;
+    private TransactionDAO transactionDAO;
 
     @InjectMocks
     private BudgetController budgetController;
@@ -86,29 +86,29 @@ public class BudgetStructuralTest {
     //create budget tests
     @Test
     public void testCreateBudget_Success_CategoryBudget() {
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(ledgerCategoryRepository.findById(10L)).thenReturn(Optional.of(parentCategory));
-        Mockito.when(budgetRepository.save(any(Budget.class))).thenAnswer(i -> i.getArguments()[0]);
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(ledgerCategoryDAO.findById(10L)).thenReturn(Optional.of(parentCategory));
+        Mockito.when(budgetDAO.save(any(Budget.class))).thenAnswer(i -> i.getArguments()[0]);
 
         ResponseEntity<String> response = budgetController.createBudget(
                 BigDecimal.valueOf(500), 10L, principal, Budget.Period.MONTHLY);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertEquals("Budget created successfully", response.getBody());
-        verify(budgetRepository, times(1)).save(any(Budget.class));
+        verify(budgetDAO, times(1)).save(any(Budget.class));
     }
 
     @Test
     public void testCreateBudget_Success_UncategorizedBudget() {
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(budgetRepository.save(any(Budget.class))).thenAnswer(i -> i.getArguments()[0]);
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(budgetDAO.save(any(Budget.class))).thenAnswer(i -> i.getArguments()[0]);
 
         ResponseEntity<String> response = budgetController.createBudget(
                 BigDecimal.valueOf(2000), null, principal, Budget.Period.MONTHLY);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertEquals("Budget created successfully", response.getBody());
-        verify(budgetRepository, times(1)).save(any(Budget.class));
+        verify(budgetDAO, times(1)).save(any(Budget.class));
     }
 
     @Test
@@ -122,7 +122,7 @@ public class BudgetStructuralTest {
 
     @Test
     public void testCreateBudget_Unauthorized_UserNotFound() {
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(null);
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(null);
 
         ResponseEntity<String> response = budgetController.createBudget(
                 BigDecimal.valueOf(500), 10L, principal, Budget.Period.MONTHLY);
@@ -133,7 +133,7 @@ public class BudgetStructuralTest {
 
     @Test
     public void testCreateBudget_BadRequest_NegativeAmount() {
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
 
         ResponseEntity<String> response = budgetController.createBudget(
                 BigDecimal.valueOf(-100), 10L, principal, Budget.Period.MONTHLY);
@@ -144,8 +144,8 @@ public class BudgetStructuralTest {
 
     @Test
     public void testCreateBudget_NotFound_CategoryNotFound() {
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(ledgerCategoryRepository.findById(999L)).thenReturn(Optional.empty());
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(ledgerCategoryDAO.findById(999L)).thenReturn(Optional.empty());
 
         assertThrows(ResponseStatusException.class, () ->
                 budgetController.createBudget(BigDecimal.valueOf(500), 999L, principal, Budget.Period.MONTHLY)
@@ -158,8 +158,8 @@ public class BudgetStructuralTest {
         anotherUser.setId(2L);
         testLedger.setOwner(anotherUser);
 
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(ledgerCategoryRepository.findById(10L)).thenReturn(Optional.of(parentCategory));
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(ledgerCategoryDAO.findById(10L)).thenReturn(Optional.of(parentCategory));
 
         ResponseEntity<String> response = budgetController.createBudget(
                 BigDecimal.valueOf(500), 10L, principal, Budget.Period.MONTHLY);
@@ -176,8 +176,8 @@ public class BudgetStructuralTest {
                 testUser);
         parentCategory.getBudgets().add(existingBudget);
 
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(ledgerCategoryRepository.findById(10L)).thenReturn(Optional.of(parentCategory));
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(ledgerCategoryDAO.findById(10L)).thenReturn(Optional.of(parentCategory));
 
         ResponseEntity<String> response = budgetController.createBudget(
                 BigDecimal.valueOf(500), 10L, principal, Budget.Period.MONTHLY);
@@ -191,8 +191,8 @@ public class BudgetStructuralTest {
         LedgerCategory incomeCategory = new LedgerCategory("Salary", CategoryType.INCOME, testLedger);
         incomeCategory.setId(20L);
 
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(ledgerCategoryRepository.findById(20L)).thenReturn(Optional.of(incomeCategory));
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(ledgerCategoryDAO.findById(20L)).thenReturn(Optional.of(incomeCategory));
 
         ResponseEntity<String> response = budgetController.createBudget(
                 BigDecimal.valueOf(500), 20L, principal, Budget.Period.MONTHLY);
@@ -209,7 +209,7 @@ public class BudgetStructuralTest {
                 testUser);
         testUser.getBudgets().add(existingUserBudget);
 
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
 
         ResponseEntity<String> response = budgetController.createBudget(
                 BigDecimal.valueOf(2000), null, principal, Budget.Period.MONTHLY);
@@ -220,9 +220,9 @@ public class BudgetStructuralTest {
 
     @Test
     public void testCreateBudget_Success_ZeroAmount() {
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(ledgerCategoryRepository.findById(10L)).thenReturn(Optional.of(parentCategory));
-        Mockito.when(budgetRepository.save(any(Budget.class))).thenAnswer(i -> i.getArguments()[0]);
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(ledgerCategoryDAO.findById(10L)).thenReturn(Optional.of(parentCategory));
+        Mockito.when(budgetDAO.save(any(Budget.class))).thenAnswer(i -> i.getArguments()[0]);
 
         ResponseEntity<String> response = budgetController.createBudget(
                 BigDecimal.ZERO, 10L, principal, Budget.Period.MONTHLY);
@@ -232,9 +232,9 @@ public class BudgetStructuralTest {
 
     @Test
     public void testCreateBudget_Success_YearlyPeriod() {
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(ledgerCategoryRepository.findById(10L)).thenReturn(Optional.of(parentCategory));
-        Mockito.when(budgetRepository.save(any(Budget.class))).thenAnswer(i -> i.getArguments()[0]);
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(ledgerCategoryDAO.findById(10L)).thenReturn(Optional.of(parentCategory));
+        Mockito.when(budgetDAO.save(any(Budget.class))).thenAnswer(i -> i.getArguments()[0]);
 
         ResponseEntity<String> response = budgetController.createBudget(
                 BigDecimal.valueOf(6000), 10L, principal, Budget.Period.YEARLY);
@@ -245,9 +245,9 @@ public class BudgetStructuralTest {
     //edit budget tests
     @Test
     public void testEditBudget_Success() {
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(budgetRepository.findById(100L)).thenReturn(Optional.of(categoryBudget));
-        Mockito.when(budgetRepository.save(any(Budget.class))).thenAnswer(i -> i.getArguments()[0]);
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(budgetDAO.findById(100L)).thenReturn(Optional.of(categoryBudget));
+        Mockito.when(budgetDAO.save(any(Budget.class))).thenAnswer(i -> i.getArguments()[0]);
 
         ResponseEntity<String> response = budgetController.editBudget(
                 100L, BigDecimal.valueOf(800), principal);
@@ -255,7 +255,7 @@ public class BudgetStructuralTest {
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertEquals("Budget updated successfully", response.getBody());
         assertEquals(0, BigDecimal.valueOf(800).compareTo(categoryBudget.getAmount()));
-        verify(budgetRepository, times(1)).save(categoryBudget);
+        verify(budgetDAO, times(1)).save(categoryBudget);
     }
 
     @Test
@@ -269,7 +269,7 @@ public class BudgetStructuralTest {
 
     @Test
     public void testEditBudget_Unauthorized_UserNotFound() {
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(null);
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(null);
 
         ResponseEntity<String> response = budgetController.editBudget(
                 100L, BigDecimal.valueOf(800), principal);
@@ -280,8 +280,8 @@ public class BudgetStructuralTest {
 
     @Test
     public void testEditBudget_NotFound() {
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(budgetRepository.findById(999L)).thenReturn(Optional.empty());
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(budgetDAO.findById(999L)).thenReturn(Optional.empty());
 
         assertThrows(ResponseStatusException.class, () ->
                 budgetController.editBudget(999L, BigDecimal.valueOf(800), principal)
@@ -294,8 +294,8 @@ public class BudgetStructuralTest {
         anotherUser.setId(2L);
         categoryBudget.setOwner(anotherUser);
 
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(budgetRepository.findById(100L)).thenReturn(Optional.of(categoryBudget));
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(budgetDAO.findById(100L)).thenReturn(Optional.of(categoryBudget));
 
         ResponseEntity<String> response = budgetController.editBudget(
                 100L, BigDecimal.valueOf(800), principal);
@@ -306,8 +306,8 @@ public class BudgetStructuralTest {
 
     @Test
     public void testEditBudget_BadRequest_NegativeAmount() {
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(budgetRepository.findById(100L)).thenReturn(Optional.of(categoryBudget));
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(budgetDAO.findById(100L)).thenReturn(Optional.of(categoryBudget));
 
         ResponseEntity<String> response = budgetController.editBudget(
                 100L, BigDecimal.valueOf(-100), principal);
@@ -318,9 +318,9 @@ public class BudgetStructuralTest {
 
     @Test
     public void testEditBudget_Success_ZeroAmount() {
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(budgetRepository.findById(100L)).thenReturn(Optional.of(categoryBudget));
-        Mockito.when(budgetRepository.save(any(Budget.class))).thenAnswer(i -> i.getArguments()[0]);
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(budgetDAO.findById(100L)).thenReturn(Optional.of(categoryBudget));
+        Mockito.when(budgetDAO.save(any(Budget.class))).thenAnswer(i -> i.getArguments()[0]);
 
         ResponseEntity<String> response = budgetController.editBudget(
                 100L, BigDecimal.ZERO, principal);
@@ -348,15 +348,15 @@ public class BudgetStructuralTest {
         testLedger.getCategories().add(subCategory);
         testUser.getLedgers().add(testLedger);
 
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(budgetRepository.findById(200L)).thenReturn(Optional.of(userBudget));
-        Mockito.when(budgetRepository.save(any(Budget.class))).thenAnswer(i -> i.getArguments()[0]);
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(budgetDAO.findById(200L)).thenReturn(Optional.of(userBudget));
+        Mockito.when(budgetDAO.save(any(Budget.class))).thenAnswer(i -> i.getArguments()[0]);
 
         ResponseEntity<String> response = budgetController.mergeBudgets(200L, principal);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertEquals("Budgets merged successfully", response.getBody());
-        verify(budgetRepository, times(1)).save(userBudget);
+        verify(budgetDAO, times(1)).save(userBudget);
     }
 
     @Test
@@ -367,9 +367,9 @@ public class BudgetStructuralTest {
                 testUser);
         subCategory.getBudgets().add(subBudget1);
 
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(budgetRepository.findById(100L)).thenReturn(Optional.of(categoryBudget));
-        Mockito.when(budgetRepository.save(any(Budget.class))).thenAnswer(i -> i.getArguments()[0]);
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(budgetDAO.findById(100L)).thenReturn(Optional.of(categoryBudget));
+        Mockito.when(budgetDAO.save(any(Budget.class))).thenAnswer(i -> i.getArguments()[0]);
 
         ResponseEntity<String> response = budgetController.mergeBudgets(100L, principal);
 
@@ -387,7 +387,7 @@ public class BudgetStructuralTest {
 
     @Test
     public void testMergeBudgets_Unauthorized_UserNotFound() {
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(null);
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(null);
 
         ResponseEntity<String> response = budgetController.mergeBudgets(200L, principal);
 
@@ -397,8 +397,8 @@ public class BudgetStructuralTest {
 
     @Test
     public void testMergeBudgets_NotFound() {
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(budgetRepository.findById(999L)).thenReturn(Optional.empty());
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(budgetDAO.findById(999L)).thenReturn(Optional.empty());
 
         assertThrows(ResponseStatusException.class, () ->
                 budgetController.mergeBudgets(999L, principal)
@@ -411,8 +411,8 @@ public class BudgetStructuralTest {
         anotherUser.setId(2L);
         userBudget.setOwner(anotherUser);
 
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(budgetRepository.findById(200L)).thenReturn(Optional.of(userBudget));
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(budgetDAO.findById(200L)).thenReturn(Optional.of(userBudget));
 
         ResponseEntity<String> response = budgetController.mergeBudgets(200L, principal);
 
@@ -430,8 +430,8 @@ public class BudgetStructuralTest {
         inactiveBudget.setStartDate(LocalDate.of(2025, 1, 1));
         inactiveBudget.setEndDate(LocalDate.of(2025, 1, 31));
 
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(budgetRepository.findById(300L)).thenReturn(Optional.of(inactiveBudget));
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(budgetDAO.findById(300L)).thenReturn(Optional.of(inactiveBudget));
 
         ResponseEntity<String> response = budgetController.mergeBudgets(300L, principal);
 
@@ -447,8 +447,8 @@ public class BudgetStructuralTest {
                 testUser);
         subCategoryBudget.setId(150L);
 
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(budgetRepository.findById(150L)).thenReturn(Optional.of(subCategoryBudget));
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(budgetDAO.findById(150L)).thenReturn(Optional.of(subCategoryBudget));
 
         ResponseEntity<String> response = budgetController.mergeBudgets(150L, principal);
 
@@ -458,9 +458,9 @@ public class BudgetStructuralTest {
 
     @Test
     public void testMergeBudgets_Success_NoSubBudgets() {
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(budgetRepository.findById(100L)).thenReturn(Optional.of(categoryBudget));
-        Mockito.when(budgetRepository.save(any(Budget.class))).thenAnswer(i -> i.getArguments()[0]);
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(budgetDAO.findById(100L)).thenReturn(Optional.of(categoryBudget));
+        Mockito.when(budgetDAO.save(any(Budget.class))).thenAnswer(i -> i.getArguments()[0]);
 
         ResponseEntity<String> response = budgetController.mergeBudgets(100L, principal);
 
@@ -473,28 +473,28 @@ public class BudgetStructuralTest {
     public void testDeleteBudget_Success_CategoryBudget() {
         parentCategory.getBudgets().add(categoryBudget);
 
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(budgetRepository.findById(100L)).thenReturn(Optional.of(categoryBudget));
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(budgetDAO.findById(100L)).thenReturn(Optional.of(categoryBudget));
 
         ResponseEntity<String> response = budgetController.deleteBudget(100L, principal);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertEquals("Budget deleted successfully", response.getBody());
-        verify(budgetRepository, times(1)).delete(categoryBudget);
+        verify(budgetDAO, times(1)).delete(categoryBudget);
     }
 
     @Test
     public void testDeleteBudget_Success_UncategorizedBudget() {
         testUser.getBudgets().add(userBudget);
 
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(budgetRepository.findById(200L)).thenReturn(Optional.of(userBudget));
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(budgetDAO.findById(200L)).thenReturn(Optional.of(userBudget));
 
         ResponseEntity<String> response = budgetController.deleteBudget(200L, principal);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertEquals("Budget deleted successfully", response.getBody());
-        verify(budgetRepository, times(1)).delete(userBudget);
+        verify(budgetDAO, times(1)).delete(userBudget);
     }
 
     @Test
@@ -507,7 +507,7 @@ public class BudgetStructuralTest {
 
     @Test
     public void testDeleteBudget_Unauthorized_UserNotFound() {
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(null);
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(null);
 
         ResponseEntity<String> response = budgetController.deleteBudget(100L, principal);
 
@@ -517,8 +517,8 @@ public class BudgetStructuralTest {
 
     @Test
     public void testDeleteBudget_NotFound() {
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(budgetRepository.findById(999L)).thenReturn(Optional.empty());
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(budgetDAO.findById(999L)).thenReturn(Optional.empty());
 
         assertThrows(ResponseStatusException.class, () ->
                 budgetController.deleteBudget(999L, principal)
@@ -531,8 +531,8 @@ public class BudgetStructuralTest {
         anotherUser.setId(2L);
         categoryBudget.setOwner(anotherUser);
 
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(budgetRepository.findById(100L)).thenReturn(Optional.of(categoryBudget));
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(budgetDAO.findById(100L)).thenReturn(Optional.of(categoryBudget));
 
         ResponseEntity<String> response = budgetController.deleteBudget(100L, principal);
 
@@ -550,13 +550,13 @@ public class BudgetStructuralTest {
         inactiveBudget.setStartDate(LocalDate.of(2025, 1,1));
         inactiveBudget.setEndDate(LocalDate.of(2025, 1, 31));
 
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(budgetRepository.findById(300L)).thenReturn(Optional.of(inactiveBudget));
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(budgetDAO.findById(300L)).thenReturn(Optional.of(inactiveBudget));
 
         ResponseEntity<String> response = budgetController.deleteBudget(300L, principal);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
-        verify(budgetRepository, times(1)).delete(inactiveBudget);
+        verify(budgetDAO, times(1)).delete(inactiveBudget);
     }
 
     //Budget Static Methods Tests
@@ -713,15 +713,15 @@ public class BudgetStructuralTest {
     //getAllBudgets Tests
     @Test
     public void testGetAllBudgets_Success_WithUserBudget() {
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(budgetRepository.findActiveUncategorizedBudgetByUserId(eq(1L),
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(budgetDAO.findActiveUncategorizedBudgetByUserId(eq(1L),
                         any(LocalDate.class)))
                 .thenReturn(Optional.of(userBudget));
-        Mockito.when(budgetRepository.findActiveCategoriesBudgetByUserId(eq(1L),
+        Mockito.when(budgetDAO.findActiveCategoriesBudgetByUserId(eq(1L),
                         any(LocalDate.class)))
                 .thenReturn(List.of(categoryBudget));
-        Mockito.when(ledgerCategoryRepository.findByParentId(10L)).thenReturn(List.of());
-        Mockito.when(transactionRepository.sumExpensesByCategoryIdsAndPeriod(
+        Mockito.when(ledgerCategoryDAO.findByParentId(10L)).thenReturn(List.of());
+        Mockito.when(transactionDAO.sumExpensesByCategoryIdsAndPeriod(
                         eq(1L),
                         anyList(),
                         any(LocalDate.class),
@@ -742,11 +742,11 @@ public class BudgetStructuralTest {
 
     @Test
     public void testGetAllBudgets_Success_WithoutUserBudget() {
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(budgetRepository.findActiveUncategorizedBudgetByUserId(eq(1L),
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(budgetDAO.findActiveUncategorizedBudgetByUserId(eq(1L),
                         any(LocalDate.class)))
                 .thenReturn(Optional.empty());
-        Mockito.when(budgetRepository.findActiveCategoriesBudgetByUserId(eq(1L),
+        Mockito.when(budgetDAO.findActiveCategoriesBudgetByUserId(eq(1L),
                         any(LocalDate.class)))
                 .thenReturn(List.of());
 
@@ -771,7 +771,7 @@ public class BudgetStructuralTest {
 
     @Test
     public void testGetAllBudgets_Unauthorized_UserNotFound() {
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(null);
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(null);
 
         ResponseEntity<Map<String, Object>> response = budgetController.getAllBudgets(principal);
 
@@ -786,19 +786,19 @@ public class BudgetStructuralTest {
                 testUser);
         subBudget.setId(150L);
 
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(budgetRepository.findActiveUncategorizedBudgetByUserId(eq(1L), any(LocalDate.class)))
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(budgetDAO.findActiveUncategorizedBudgetByUserId(eq(1L), any(LocalDate.class)))
                 .thenReturn(Optional.of(userBudget));
-        Mockito.when(budgetRepository.findActiveCategoriesBudgetByUserId(eq(1L), any(LocalDate.class)))
+        Mockito.when(budgetDAO.findActiveCategoriesBudgetByUserId(eq(1L), any(LocalDate.class)))
                 .thenReturn(List.of(categoryBudget));
-        Mockito.when(ledgerCategoryRepository.findByParentId(10L)).thenReturn(List.of(subCategory));
-        Mockito.when(budgetRepository.findActiveSubCategoryBudget(
+        Mockito.when(ledgerCategoryDAO.findByParentId(10L)).thenReturn(List.of(subCategory));
+        Mockito.when(budgetDAO.findActiveSubCategoryBudget(
                         eq(1L), eq(11L), any(LocalDate.class), eq(Budget.Period.MONTHLY)))
                 .thenReturn(Optional.of(subBudget));
-        Mockito.when(transactionRepository.sumExpensesByCategoryIdsAndPeriod(
+        Mockito.when(transactionDAO.sumExpensesByCategoryIdsAndPeriod(
                         eq(1L), anyList(), any(LocalDate.class), any(LocalDate.class)))
                 .thenReturn(BigDecimal.valueOf(200));
-        Mockito.when(transactionRepository.sumExpensesBySubCategoryAndPeriod(
+        Mockito.when(transactionDAO.sumExpensesBySubCategoryAndPeriod(
                         eq(1L), eq(11L), any(LocalDate.class), any(LocalDate.class)))
                 .thenReturn(BigDecimal.valueOf(50));
 
@@ -810,15 +810,15 @@ public class BudgetStructuralTest {
 
     @Test
     public void testGetAllBudgets_Success_NullSpent() {
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(budgetRepository.findActiveUncategorizedBudgetByUserId(eq(1L),
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(budgetDAO.findActiveUncategorizedBudgetByUserId(eq(1L),
                         any(LocalDate.class)))
                 .thenReturn(Optional.of(userBudget));
-        Mockito.when(budgetRepository.findActiveCategoriesBudgetByUserId(eq(1L),
+        Mockito.when(budgetDAO.findActiveCategoriesBudgetByUserId(eq(1L),
                         any(LocalDate.class)))
                 .thenReturn(List.of(categoryBudget));
-        Mockito.when(ledgerCategoryRepository.findByParentId(10L)).thenReturn(List.of());
-        Mockito.when(transactionRepository.sumExpensesByCategoryIdsAndPeriod(
+        Mockito.when(ledgerCategoryDAO.findByParentId(10L)).thenReturn(List.of());
+        Mockito.when(transactionDAO.sumExpensesByCategoryIdsAndPeriod(
                         eq(1L), anyList(), any(LocalDate.class), any(LocalDate.class)))
                 .thenReturn(null);
 
@@ -846,15 +846,15 @@ public class BudgetStructuralTest {
                 testUser);
         anotherBudget.setId(150L);
 
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(budgetRepository.findActiveUncategorizedBudgetByUserId(eq(1L),
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(budgetDAO.findActiveUncategorizedBudgetByUserId(eq(1L),
                         any(LocalDate.class)))
                 .thenReturn(Optional.of(userBudget));
-        Mockito.when(budgetRepository.findActiveCategoriesBudgetByUserId(eq(1L),
+        Mockito.when(budgetDAO.findActiveCategoriesBudgetByUserId(eq(1L),
                         any(LocalDate.class)))
                 .thenReturn(List.of(categoryBudget, anotherBudget));
-        Mockito.when(ledgerCategoryRepository.findByParentId(anyLong())).thenReturn(List.of());
-        Mockito.when(transactionRepository.sumExpensesByCategoryIdsAndPeriod(
+        Mockito.when(ledgerCategoryDAO.findByParentId(anyLong())).thenReturn(List.of());
+        Mockito.when(transactionDAO.sumExpensesByCategoryIdsAndPeriod(
                         eq(1L), anyList(), any(LocalDate.class), any(LocalDate.class)))
                 .thenReturn(BigDecimal.valueOf(400));
 
@@ -884,18 +884,18 @@ public class BudgetStructuralTest {
                 testUser);
         subBudget.setId(150L);
 
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(budgetRepository.findById(100L)).thenReturn(Optional.of(categoryBudget));
-        Mockito.when(budgetRepository.findActiveCategoryBudget(
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(budgetDAO.findById(100L)).thenReturn(Optional.of(categoryBudget));
+        Mockito.when(budgetDAO.findActiveCategoryBudget(
                         eq(1L), eq(10L), any(LocalDate.class), eq(Budget.Period.MONTHLY)))
                 .thenReturn(Optional.of(categoryBudget));
-        Mockito.when(budgetRepository.findActiveSubCategoryBudget(
+        Mockito.when(budgetDAO.findActiveSubCategoryBudget(
                         eq(1L), eq(11L), any(LocalDate.class), eq(Budget.Period.MONTHLY)))
                 .thenReturn(Optional.of(subBudget));
-        Mockito.when(transactionRepository.sumExpensesByCategoryIdsAndPeriod(
+        Mockito.when(transactionDAO.sumExpensesByCategoryIdsAndPeriod(
                         eq(1L), anyList(), any(LocalDate.class), any(LocalDate.class)))
                 .thenReturn(BigDecimal.valueOf(200));
-        Mockito.when(transactionRepository.sumExpensesBySubCategoryAndPeriod(
+        Mockito.when(transactionDAO.sumExpensesBySubCategoryAndPeriod(
                         eq(1L), eq(11L), any(LocalDate.class), any(LocalDate.class)))
                 .thenReturn(BigDecimal.valueOf(50));
 
@@ -924,7 +924,7 @@ public class BudgetStructuralTest {
 
     @Test
     public void testGetCategoryBudgetsWithSubCategoryBudgets_Unauthorized_UserNotFound() {
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(null);
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(null);
 
         ResponseEntity<Map<String, Object>> response = budgetController
                 .getCategoryBudgetsWithSubCategoryBudgets(100L, principal);
@@ -934,8 +934,8 @@ public class BudgetStructuralTest {
 
     @Test
     public void testGetCategoryBudgetsWithSubCategoryBudgets_NotFound() {
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(budgetRepository.findById(999L)).thenReturn(Optional.empty());
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(budgetDAO.findById(999L)).thenReturn(Optional.empty());
 
         assertThrows(ResponseStatusException.class, () ->
                 budgetController.getCategoryBudgetsWithSubCategoryBudgets(999L, principal)
@@ -948,8 +948,8 @@ public class BudgetStructuralTest {
         anotherUser.setId(2L);
         categoryBudget.setOwner(anotherUser);
 
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(budgetRepository.findById(100L)).thenReturn(Optional.of(categoryBudget));
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(budgetDAO.findById(100L)).thenReturn(Optional.of(categoryBudget));
 
         ResponseEntity<Map<String, Object>> response = budgetController
                 .getCategoryBudgetsWithSubCategoryBudgets(100L, principal);
@@ -959,8 +959,8 @@ public class BudgetStructuralTest {
 
     @Test
     public void testGetCategoryBudgetsWithSubCategoryBudgets_BadRequest_UncategorizedBudget() {
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(budgetRepository.findById(200L)).thenReturn(Optional.of(userBudget));
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(budgetDAO.findById(200L)).thenReturn(Optional.of(userBudget));
 
         ResponseEntity<Map<String, Object>> response = budgetController
                 .getCategoryBudgetsWithSubCategoryBudgets(200L, principal);
@@ -976,8 +976,8 @@ public class BudgetStructuralTest {
                 testUser);
         subCategoryBudget.setId(150L);
 
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(budgetRepository.findById(150L)).thenReturn(Optional.of(subCategoryBudget));
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(budgetDAO.findById(150L)).thenReturn(Optional.of(subCategoryBudget));
 
         ResponseEntity<Map<String, Object>> response = budgetController
                 .getCategoryBudgetsWithSubCategoryBudgets(150L, principal);
@@ -991,15 +991,15 @@ public class BudgetStructuralTest {
         testLedger.getCategories().add(parentCategory);
         parentCategory.getChildren().add(subCategory);
 
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(budgetRepository.findById(100L)).thenReturn(Optional.of(categoryBudget));
-        Mockito.when(budgetRepository.findActiveCategoryBudget(
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(budgetDAO.findById(100L)).thenReturn(Optional.of(categoryBudget));
+        Mockito.when(budgetDAO.findActiveCategoryBudget(
                         eq(1L),
                         eq(10L),
                         any(LocalDate.class),
                         eq(Budget.Period.MONTHLY)))
                 .thenReturn(Optional.of(categoryBudget));
-        Mockito.when(transactionRepository.sumExpensesByCategoryIdsAndPeriod(
+        Mockito.when(transactionDAO.sumExpensesByCategoryIdsAndPeriod(
                         eq(1L),
                         anyList(),
                         any(LocalDate.class),
@@ -1025,18 +1025,18 @@ public class BudgetStructuralTest {
         testLedger.getCategories().add(subCategory);
         parentCategory.getChildren().add(subCategory);
 
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(budgetRepository.findById(100L)).thenReturn(Optional.of(categoryBudget));
-        Mockito.when(budgetRepository.findActiveCategoryBudget(
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(budgetDAO.findById(100L)).thenReturn(Optional.of(categoryBudget));
+        Mockito.when(budgetDAO.findActiveCategoryBudget(
                         eq(1L), eq(10L), any(LocalDate.class), eq(Budget.Period.MONTHLY)))
                 .thenReturn(Optional.of(categoryBudget));
-        Mockito.when(budgetRepository.findActiveSubCategoryBudget(
+        Mockito.when(budgetDAO.findActiveSubCategoryBudget(
                         eq(1L), eq(11L), any(LocalDate.class), eq(Budget.Period.MONTHLY)))
                 .thenReturn(Optional.empty());
-        Mockito.when(transactionRepository.sumExpensesByCategoryIdsAndPeriod(
+        Mockito.when(transactionDAO.sumExpensesByCategoryIdsAndPeriod(
                         eq(1L), anyList(), any(LocalDate.class), any(LocalDate.class)))
                 .thenReturn(null);
-        Mockito.when(transactionRepository.sumExpensesBySubCategoryAndPeriod(
+        Mockito.when(transactionDAO.sumExpensesBySubCategoryAndPeriod(
                         eq(1L), eq(11L), any(LocalDate.class), any(LocalDate.class)))
                 .thenReturn(null);
 
@@ -1066,12 +1066,12 @@ public class BudgetStructuralTest {
         testLedger.getCategories().add(parentCategory);
         anotherLedger.getCategories().add(anotherFoodCategory);
 
-        Mockito.when(userRepository.findByUsername("Alice")).thenReturn(testUser);
-        Mockito.when(budgetRepository.findById(100L)).thenReturn(Optional.of(categoryBudget));
-        Mockito.when(budgetRepository.findActiveCategoryBudget(
+        Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
+        Mockito.when(budgetDAO.findById(100L)).thenReturn(Optional.of(categoryBudget));
+        Mockito.when(budgetDAO.findActiveCategoryBudget(
                         anyLong(), anyLong(), any(LocalDate.class), eq(Budget.Period.MONTHLY)))
                 .thenReturn(Optional.of(categoryBudget), Optional.of(anotherBudget));
-        Mockito.when(transactionRepository.sumExpensesByCategoryIdsAndPeriod(
+        Mockito.when(transactionDAO.sumExpensesByCategoryIdsAndPeriod(
                         eq(1L), anyList(), any(LocalDate.class), any(LocalDate.class)))
                 .thenReturn(BigDecimal.valueOf(200), BigDecimal.valueOf(150));
 
