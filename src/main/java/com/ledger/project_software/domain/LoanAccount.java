@@ -117,6 +117,12 @@ public class LoanAccount extends Account {
     public BigDecimal getRemainingAmount() {
         return remainingAmount;
     }
+    public BigDecimal getAnnualInterestRate() {
+        return annualInterestRate;
+    }
+    public BigDecimal getLoanAmount() {
+        return loanAmount;
+    }
 
 
     @Override
