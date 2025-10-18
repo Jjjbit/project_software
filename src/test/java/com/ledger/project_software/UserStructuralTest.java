@@ -827,7 +827,7 @@ public class UserStructuralTest {
         // totalLiabilities = 40000
         Assertions.assertEquals(0, BigDecimal.valueOf(40000).compareTo((BigDecimal) body.get("totalLiabilities")));
 
-        // netAssets = 1000 - 40000 = -39000 (负数)
+        // netAssets = 1000 - 40000 = -39000
         Assertions.assertEquals(0, BigDecimal.valueOf(-39000).compareTo((BigDecimal) body.get("netAssets")));
 
         verify(userDAO, times(1)).findByUsername("Alice");
