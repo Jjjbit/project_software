@@ -28,9 +28,9 @@ public class InstallmentPlanTest {
     @Autowired
     private MockMvc mockMvc;
     @Autowired
-    private UserDAO userRepository;
+    private UserDAO userDAO;
     @Autowired
-    private AccountDAO accountRepository;
+    private AccountDAO accountDAO;
 
     private User testUser;
     private CreditAccount testAccount;
@@ -44,7 +44,7 @@ public class InstallmentPlanTest {
     @BeforeEach
     public void setUp() {
         testUser = new User("Alice", "pass123");
-        userRepository.save(testUser);
+        userDAO.save(testUser);
 
         testAccount = new CreditAccount("Test Account",
                 BigDecimal.valueOf(1000),
@@ -57,9 +57,9 @@ public class InstallmentPlanTest {
                 null,
                 1,
                 AccountType.CREDIT_CARD);
-        accountRepository.save(testAccount);
+        accountDAO.save(testAccount);
         testUser.getAccounts().add(testAccount);
-        userRepository.save(testUser);
+        userDAO.save(testUser);
     }
 
     @Test
@@ -82,11 +82,11 @@ public class InstallmentPlanTest {
         Assertions.assertEquals(InstallmentPlan.FeeStrategy.EVENLY_SPLIT, newPlan.getFeeStrategy());
         Assertions.assertEquals(testAccount.getId(), newPlan.getLinkedAccount().getId());
 
-        CreditAccount updatedAccount = (CreditAccount) accountRepository.findById(testAccount.getId()).orElse(null);
+        CreditAccount updatedAccount = (CreditAccount) accountDAO.findById(testAccount.getId()).orElse(null);
         Assertions.assertTrue(updatedAccount.getInstallmentPlans().contains(newPlan));
         Assertions.assertEquals(0, updatedAccount.getCurrentDebt().compareTo(BigDecimal.valueOf(1200)));
 
-        User updatedUser = userRepository.findById(testUser.getId()).orElse(null);
+        User updatedUser = userDAO.findById(testUser.getId()).orElse(null);
         Assertions.assertEquals(0, updatedUser.getTotalLiabilities().compareTo(BigDecimal.valueOf(1200)));
     }
 
@@ -114,12 +114,12 @@ public class InstallmentPlanTest {
         Assertions.assertEquals(testAccount.getId(), newPlan.getLinkedAccount().getId());
         Assertions.assertEquals(0, newPlan.getRemainingAmount().compareTo(BigDecimal.valueOf(1100)));
 
-        CreditAccount updatedAccount = (CreditAccount) accountRepository.findById(testAccount.getId()).orElse(null);
+        CreditAccount updatedAccount = (CreditAccount) accountDAO.findById(testAccount.getId()).orElse(null);
         Assertions.assertTrue(updatedAccount.getInstallmentPlans().contains(newPlan));
         // total debt should be totalAmount + fee
         Assertions.assertEquals(0, updatedAccount.getCurrentDebt().compareTo(BigDecimal.valueOf(1100)));
 
-        User updatedUser = userRepository.findById(testUser.getId()).orElse(null);
+        User updatedUser = userDAO.findById(testUser.getId()).orElse(null);
         Assertions.assertEquals(0, updatedUser.getTotalLiabilities().compareTo(BigDecimal.valueOf(1100)));
 
     }
@@ -137,8 +137,8 @@ public class InstallmentPlanTest {
         );
         installmentPlanRepository.save(plan);
         testAccount.addInstallmentPlan(plan);
-        accountRepository.save(testAccount);
-        userRepository.save(testUser);
+        accountDAO.save(testAccount);
+        userDAO.save(testUser);
 
         mockMvc.perform(put("/installment-plans/" + plan.getId() + "/edit")
                         .principal(() -> "Alice")
@@ -158,10 +158,10 @@ public class InstallmentPlanTest {
         Assertions.assertEquals(InstallmentPlan.FeeStrategy.UPFRONT, updatedPlan.getFeeStrategy());
         Assertions.assertEquals(0, updatedPlan.getRemainingAmount().compareTo(BigDecimal.valueOf(1200)));
 
-        CreditAccount updatedAccount = (CreditAccount) accountRepository.findById(testAccount.getId()).orElse(null);
+        CreditAccount updatedAccount = (CreditAccount) accountDAO.findById(testAccount.getId()).orElse(null);
         Assertions.assertEquals(0, updatedAccount.getCurrentDebt().compareTo(BigDecimal.valueOf(1200)));
 
-        User updatedUser = userRepository.findById(testUser.getId()).orElse(null);
+        User updatedUser = userDAO.findById(testUser.getId()).orElse(null);
         Assertions.assertEquals(0, updatedUser.getTotalLiabilities().compareTo(BigDecimal.valueOf(1200)));
     }
 
@@ -179,9 +179,9 @@ public class InstallmentPlanTest {
                 null,
                 1,
                 AccountType.CREDIT_CARD);
-        accountRepository.save(newAccount);
+        accountDAO.save(newAccount);
         testUser.getAccounts().add(newAccount);
-        userRepository.save(testUser);
+        userDAO.save(testUser);
 
         InstallmentPlan plan = new InstallmentPlan(
                 BigDecimal.valueOf(1200),
@@ -193,8 +193,8 @@ public class InstallmentPlanTest {
         );
         installmentPlanRepository.save(plan);
         testAccount.addInstallmentPlan(plan);
-        accountRepository.save(testAccount);
-        userRepository.save(testUser);
+        accountDAO.save(testAccount);
+        userDAO.save(testUser);
 
         mockMvc.perform(put("/installment-plans/" + plan.getId() + "/edit")
                         .principal(() -> "Alice")
@@ -216,15 +216,15 @@ public class InstallmentPlanTest {
         Assertions.assertEquals(newAccount.getId(), updatedPlan.getLinkedAccount().getId());
         Assertions.assertEquals(0, updatedPlan.getRemainingAmount().compareTo(BigDecimal.valueOf(1200)));
 
-        CreditAccount oldAccount = (CreditAccount) accountRepository.findById(testAccount.getId()).orElse(null);
+        CreditAccount oldAccount = (CreditAccount) accountDAO.findById(testAccount.getId()).orElse(null);
         Assertions.assertFalse(oldAccount.getInstallmentPlans().contains(updatedPlan));
         Assertions.assertEquals(0, oldAccount.getCurrentDebt().compareTo(BigDecimal.ZERO));
 
-        CreditAccount updatedAccount = (CreditAccount) accountRepository.findById(newAccount.getId()).orElse(null);
+        CreditAccount updatedAccount = (CreditAccount) accountDAO.findById(newAccount.getId()).orElse(null);
         Assertions.assertTrue(updatedAccount.getInstallmentPlans().contains(updatedPlan));
         Assertions.assertEquals(0, updatedAccount.getCurrentDebt().compareTo(BigDecimal.valueOf(1200)));
 
-        User updatedUser = userRepository.findById(testUser.getId()).orElse(null);
+        User updatedUser = userDAO.findById(testUser.getId()).orElse(null);
         Assertions.assertEquals(0, updatedUser.getTotalLiabilities().compareTo(BigDecimal.valueOf(1200)));
     }
 
@@ -241,8 +241,8 @@ public class InstallmentPlanTest {
         );
         installmentPlanRepository.save(plan);
         testAccount.addInstallmentPlan(plan);
-        accountRepository.save(testAccount);
-        userRepository.save(testUser);
+        accountDAO.save(testAccount);
+        userDAO.save(testUser);
 
         mockMvc.perform(delete("/installment-plans/" + plan.getId() + "/delete")
                         .principal(() -> "Alice"))
@@ -252,11 +252,11 @@ public class InstallmentPlanTest {
         InstallmentPlan deletedPlan = installmentPlanRepository.findById(plan.getId()).orElse(null);
         Assertions.assertNull(deletedPlan);
 
-        CreditAccount updatedAccount = (CreditAccount) accountRepository.findById(testAccount.getId()).orElse(null);
+        CreditAccount updatedAccount = (CreditAccount) accountDAO.findById(testAccount.getId()).orElse(null);
         Assertions.assertFalse(updatedAccount.getInstallmentPlans().contains(plan));
         Assertions.assertEquals(0, updatedAccount.getCurrentDebt().compareTo(BigDecimal.ZERO));
 
-        User updatedUser = userRepository.findById(testUser.getId()).orElse(null);
+        User updatedUser = userDAO.findById(testUser.getId()).orElse(null);
         Assertions.assertEquals(0, updatedUser.getTotalLiabilities().compareTo(BigDecimal.ZERO));
     }
 
@@ -273,12 +273,12 @@ public class InstallmentPlanTest {
         ); ////1201.2-100.1=1101.1
         installmentPlanRepository.save(plan);
         testAccount.addInstallmentPlan(plan);
-        accountRepository.save(testAccount);
+        accountDAO.save(testAccount);
 
         Ledger testLedger =new Ledger("Test Ledger", testUser);
         ledgerRepository.save(testLedger);
         testUser.getLedgers().add(testLedger);
-        userRepository.save(testUser);
+        userDAO.save(testUser);
 
         mockMvc.perform(put("/installment-plans/" + plan.getId() + "/repay")
                         .principal(() -> "Alice")
@@ -291,7 +291,7 @@ public class InstallmentPlanTest {
         Assertions.assertEquals(2, updatedPlan.getPaidPeriods());
         Assertions.assertEquals(0, updatedPlan.getRemainingAmount().compareTo(BigDecimal.valueOf(1001)));
 
-        CreditAccount updatedAccount = (CreditAccount) accountRepository.findById(testAccount.getId()).orElse(null);
+        CreditAccount updatedAccount = (CreditAccount) accountDAO.findById(testAccount.getId()).orElse(null);
         Assertions.assertEquals(0, updatedAccount.getCurrentDebt().compareTo(BigDecimal.valueOf(1001)));
         Assertions.assertEquals(1, updatedAccount.getOutgoingTransactions().size());
         Assertions.assertEquals(0, updatedAccount.getBalance().compareTo(BigDecimal.valueOf(899.9)));
@@ -299,7 +299,7 @@ public class InstallmentPlanTest {
         Ledger updatedLedger=ledgerRepository.findById(testLedger.getId()).orElse(null);
         Assertions.assertEquals(1, updatedLedger.getTransactions().size());
 
-        User updatedUser = userRepository.findById(testUser.getId()).orElse(null);
+        User updatedUser = userDAO.findById(testUser.getId()).orElse(null);
         Assertions.assertEquals(0, updatedUser.getTotalLiabilities().compareTo(BigDecimal.valueOf(1001)));
 
         Assertions.assertEquals(1, transactionRepository.findAll().size());
@@ -318,7 +318,7 @@ public class InstallmentPlanTest {
         );
         installmentPlanRepository.save(plan);
         testAccount.addInstallmentPlan(plan);
-        accountRepository.save(testAccount);
+        accountDAO.save(testAccount);
 
         mockMvc.perform(put("/installment-plans/" + plan.getId() + "/repay")
                         .principal(() -> "Alice")
@@ -331,12 +331,12 @@ public class InstallmentPlanTest {
         Assertions.assertEquals(2, updatedPlan.getPaidPeriods());
         Assertions.assertEquals(0, updatedPlan.getRemainingAmount().compareTo(BigDecimal.valueOf(951.1)));
 
-        CreditAccount updatedAccount = (CreditAccount) accountRepository.findById(testAccount.getId()).orElse(null);
+        CreditAccount updatedAccount = (CreditAccount) accountDAO.findById(testAccount.getId()).orElse(null);
         Assertions.assertEquals(0, updatedAccount.getCurrentDebt().compareTo(BigDecimal.valueOf(951.1)));
         Assertions.assertEquals(1, updatedAccount.getOutgoingTransactions().size());
         Assertions.assertEquals(0, updatedAccount.getBalance().compareTo(BigDecimal.valueOf(850)));
 
-        User updatedUser = userRepository.findById(testUser.getId()).orElse(null);
+        User updatedUser = userDAO.findById(testUser.getId()).orElse(null);
         Assertions.assertEquals(0, updatedUser.getTotalLiabilities().compareTo(BigDecimal.valueOf(951.1)));
 
     }
