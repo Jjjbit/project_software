@@ -38,22 +38,22 @@ public class LedgerCategoryTest {
     private MockMvc mockMvc;
 
     @Autowired
-    private LedgerCategoryDAO ledgerCategoryRepository;
+    private LedgerCategoryDAO ledgerCategoryDAO;
 
     @Autowired
-    private UserDAO userRepository;
+    private UserDAO userDAO;
 
     @Autowired
-    private LedgerDAO ledgerRepository;
+    private LedgerDAO ledgerDAO;
 
     @Autowired
-    private AccountDAO accountRepository;
+    private AccountDAO accountDAO;
 
     @Autowired
-    private TransactionDAO transactionRepository;
+    private TransactionDAO transactionDAO;
 
     @Autowired
-    private BudgetDAO budgetRepository;
+    private BudgetDAO budgetDAO;
 
     private Ledger testLedger1;
     private Ledger testLedger2;
@@ -63,12 +63,12 @@ public class LedgerCategoryTest {
     @BeforeEach
     public void setUp(){
         testUser=new User("Alice", "pass123");
-        userRepository.save(testUser);
+        userDAO.save(testUser);
 
         testLedger1 = new Ledger("Test Ledger", testUser);
-        ledgerRepository.save(testLedger1);
+        ledgerDAO.save(testLedger1);
         testLedger2=new Ledger("Test Ledger2", testUser);
-        ledgerRepository.save(testLedger2);
+        ledgerDAO.save(testLedger2);
 
         testAccount = new BasicAccount("Test Account",
                 BigDecimal.valueOf(1000),
@@ -78,9 +78,9 @@ public class LedgerCategoryTest {
                 AccountType.CASH,
                 AccountCategory.FUNDS,
                 testUser);
-        accountRepository.save(testAccount);
+        accountDAO.save(testAccount);
         testUser.getAccounts().add(testAccount);
-        userRepository.save(testUser);
+        userDAO.save(testUser);
     }
 
     @Configuration //converte String in YearMonth per i test
@@ -108,16 +108,16 @@ public class LedgerCategoryTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string("Category created successfully"));
 
-        LedgerCategory createdCategory=ledgerCategoryRepository.findByLedgerAndName(testLedger1, "Food");
+        LedgerCategory createdCategory= ledgerCategoryDAO.findByLedgerAndName(testLedger1, "Food");
         Assertions.assertNotNull(createdCategory);
         Assertions.assertEquals(CategoryType.EXPENSE, createdCategory.getType());
         Assertions.assertEquals(testLedger1.getId(), createdCategory.getLedger().getId());
 
-        Ledger updatedLedger=ledgerRepository.findById(testLedger1.getId()).orElse(null);
+        Ledger updatedLedger= ledgerDAO.findById(testLedger1.getId()).orElse(null);
         Assertions.assertTrue(updatedLedger.getCategories().contains(createdCategory));
         Assertions.assertEquals(1, updatedLedger.getCategories().size());
 
-        Ledger notUpdatedLedger=ledgerRepository.findById(testLedger2.getId()).orElse(null);
+        Ledger notUpdatedLedger= ledgerDAO.findById(testLedger2.getId()).orElse(null);
         Assertions.assertFalse(notUpdatedLedger.getCategories().contains(createdCategory));
     }
 
@@ -126,7 +126,7 @@ public class LedgerCategoryTest {
     public void testCreateSubCategory() throws Exception{
         LedgerCategory foodCategory=new LedgerCategory("Food", CategoryType.EXPENSE, testLedger1);
         testLedger1.getCategories().add(foodCategory);
-        ledgerCategoryRepository.save(foodCategory);
+        ledgerCategoryDAO.save(foodCategory);
 
         mockMvc.perform(post("/ledger-categories/" + foodCategory.getId() + "/create-subcategory")
                         .principal(() -> "Alice")
@@ -136,13 +136,13 @@ public class LedgerCategoryTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string("SubCategory created successfully"));
 
-        LedgerCategory createdSubCategory=ledgerCategoryRepository.findByLedgerAndName(testLedger1, "lunch");
+        LedgerCategory createdSubCategory= ledgerCategoryDAO.findByLedgerAndName(testLedger1, "lunch");
         Assertions.assertNotNull(createdSubCategory);
         Assertions.assertEquals(CategoryType.EXPENSE, createdSubCategory.getType());
         Assertions.assertEquals(testLedger1.getId(), createdSubCategory.getLedger().getId());
         Assertions.assertEquals(foodCategory.getId(), createdSubCategory.getParent().getId());
 
-        LedgerCategory updatedFoodCategory=ledgerCategoryRepository.findByLedgerAndName(testLedger1, "Food");
+        LedgerCategory updatedFoodCategory= ledgerCategoryDAO.findByLedgerAndName(testLedger1, "Food");
         Assertions.assertTrue(updatedFoodCategory.getChildren().contains(createdSubCategory));
         Assertions.assertEquals(1, updatedFoodCategory.getChildren().size());
     }
@@ -151,34 +151,34 @@ public class LedgerCategoryTest {
     @WithMockUser(username = "Alice")
     public void testDeleteLedgerCategory_WithoutTransactions() throws Exception{
         LedgerCategory foodCategory=new LedgerCategory("Food", CategoryType.EXPENSE, testLedger1);
-        ledgerCategoryRepository.save(foodCategory);
+        ledgerCategoryDAO.save(foodCategory);
 
         LedgerCategory mealsCategory=new LedgerCategory("Meals", CategoryType.EXPENSE, testLedger1);
-        ledgerCategoryRepository.save(mealsCategory);
+        ledgerCategoryDAO.save(mealsCategory);
 
         LedgerCategory lunch=new LedgerCategory("Lunch", CategoryType.EXPENSE, testLedger1);
         mealsCategory.getChildren().add(lunch);
         lunch.setParent(mealsCategory);
-        ledgerCategoryRepository.save(lunch);
+        ledgerCategoryDAO.save(lunch);
 
         testLedger1.getCategories().add(foodCategory);
         testLedger1.getCategories().add(mealsCategory);
         testLedger1.getCategories().add(lunch);
 
         Transaction transaction1 = new Expense(LocalDate.now(), BigDecimal.valueOf(10),null, testAccount, testLedger1, foodCategory);
-        transactionRepository.save(transaction1);
+        transactionDAO.save(transaction1);
         testAccount.addTransaction(transaction1);
         testLedger1.getTransactions().add(transaction1);
         foodCategory.getTransactions().add(transaction1);
 
         //test delete subcategory with budget
         Budget budget1=new Budget(BigDecimal.valueOf(100), Budget.Period.MONTHLY, foodCategory, testUser);
-        budgetRepository.save(budget1);
+        budgetDAO.save(budget1);
         foodCategory.getBudgets().add(budget1);
 
-        accountRepository.save(testAccount);
-        ledgerRepository.save(testLedger1);
-        ledgerCategoryRepository.save(foodCategory);
+        accountDAO.save(testAccount);
+        ledgerDAO.save(testLedger1);
+        ledgerCategoryDAO.save(foodCategory);
 
 
         mockMvc.perform(delete("/ledger-categories/"+ foodCategory.getId() +"/delete")
@@ -202,22 +202,22 @@ public class LedgerCategoryTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string("Deleted successfully"));
 
-        Ledger updateLedger = ledgerRepository.findById(testLedger1.getId()).orElseThrow();
+        Ledger updateLedger = ledgerDAO.findById(testLedger1.getId()).orElseThrow();
         Assertions.assertEquals(1, updateLedger.getTransactions().size());
 
-        LedgerCategory updateFoodCategory=ledgerCategoryRepository.findById(foodCategory.getId()).orElse(null);
+        LedgerCategory updateFoodCategory= ledgerCategoryDAO.findById(foodCategory.getId()).orElse(null);
         Assertions.assertNull(updateFoodCategory);
 
-        LedgerCategory updateMealsCategory=ledgerCategoryRepository.findById(mealsCategory.getId()).orElse(null);
+        LedgerCategory updateMealsCategory= ledgerCategoryDAO.findById(mealsCategory.getId()).orElse(null);
         Assertions.assertEquals(1, updateMealsCategory.getTransactions().size());
 
-        Account updateAccount=accountRepository.findById(testAccount.getId()).orElse(null);
+        Account updateAccount= accountDAO.findById(testAccount.getId()).orElse(null);
         Assertions.assertEquals(0, updateAccount.getBalance().compareTo(BigDecimal.valueOf(990)));
 
-        User updateUser=userRepository.findById(testUser.getId()).orElse(null);
+        User updateUser= userDAO.findById(testUser.getId()).orElse(null);
         Assertions.assertEquals(0, updateUser.getTotalAssets().compareTo(BigDecimal.valueOf(990)));
 
-        Budget updateBudget=budgetRepository.findById(budget1.getId()).orElse(null);
+        Budget updateBudget= budgetDAO.findById(budget1.getId()).orElse(null);
         Assertions.assertNull(updateBudget);
     }
 
@@ -225,25 +225,25 @@ public class LedgerCategoryTest {
     @WithMockUser(username = "Alice")
     public void testDeleteLedgerCategory_WithChild() throws Exception{
         LedgerCategory foodCategory=new LedgerCategory("Food", CategoryType.EXPENSE, testLedger1);
-        ledgerCategoryRepository.save(foodCategory);
+        ledgerCategoryDAO.save(foodCategory);
 
         LedgerCategory lunch=new LedgerCategory("Lunch", CategoryType.EXPENSE, testLedger1);
         foodCategory.getChildren().add(lunch);
         lunch.setParent(foodCategory);
-        ledgerCategoryRepository.save(lunch);
+        ledgerCategoryDAO.save(lunch);
 
         testLedger1.getCategories().add(foodCategory);
         testLedger1.getCategories().add(lunch);
 
         Transaction transaction1 = new Expense(LocalDate.now(), BigDecimal.valueOf(10),null, testAccount, testLedger1, foodCategory);
-        transactionRepository.save(transaction1);
+        transactionDAO.save(transaction1);
         testAccount.addTransaction(transaction1);
         testLedger1.getTransactions().add(transaction1);
         foodCategory.getTransactions().add(transaction1);
 
-        accountRepository.save(testAccount);
-        ledgerRepository.save(testLedger1);
-        ledgerCategoryRepository.save(foodCategory);
+        accountDAO.save(testAccount);
+        ledgerDAO.save(testLedger1);
+        ledgerCategoryDAO.save(foodCategory);
 
         mockMvc.perform(delete("/ledger-categories/"+ foodCategory.getId() +"/delete")
                         .principal(() -> "Alice")
@@ -257,23 +257,23 @@ public class LedgerCategoryTest {
     @WithMockUser(username = "Alice")
     public void testDeleteLedgerCategory_WithTransactions() throws Exception{
         LedgerCategory foodCategory=new LedgerCategory("Food", CategoryType.EXPENSE, testLedger1);
-        ledgerCategoryRepository.save(foodCategory);
+        ledgerCategoryDAO.save(foodCategory);
         testLedger1.getCategories().add(foodCategory);
 
         Transaction transaction1 = new Expense(LocalDate.now(), BigDecimal.valueOf(10),null, testAccount, testLedger1, foodCategory);
-        transactionRepository.save(transaction1);
+        transactionDAO.save(transaction1);
         testAccount.addTransaction(transaction1);
         testLedger1.getTransactions().add(transaction1);
         foodCategory.getTransactions().add(transaction1);
 
         //test delete category with budget
         Budget budget1=new Budget(BigDecimal.valueOf(100), Budget.Period.MONTHLY, foodCategory, testUser);
-        budgetRepository.save(budget1);
+        budgetDAO.save(budget1);
         foodCategory.getBudgets().add(budget1);
 
-        accountRepository.save(testAccount);
-        ledgerRepository.save(testLedger1);
-        ledgerCategoryRepository.save(foodCategory);
+        accountDAO.save(testAccount);
+        ledgerDAO.save(testLedger1);
+        ledgerCategoryDAO.save(foodCategory);
 
         mockMvc.perform(delete("/ledger-categories/"+ foodCategory.getId() +"/delete")
                         .principal(() -> "Alice")
@@ -282,19 +282,19 @@ public class LedgerCategoryTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string("Deleted successfully"));
 
-        Ledger updateLedger = ledgerRepository.findById(testLedger1.getId()).orElseThrow();
+        Ledger updateLedger = ledgerDAO.findById(testLedger1.getId()).orElseThrow();
         Assertions.assertEquals(0, updateLedger.getTransactions().size());
 
-        LedgerCategory updateFoodCategory=ledgerCategoryRepository.findById(foodCategory.getId()).orElse(null);
+        LedgerCategory updateFoodCategory= ledgerCategoryDAO.findById(foodCategory.getId()).orElse(null);
         Assertions.assertNull(updateFoodCategory);
 
-        User updateUser=userRepository.findById(testUser.getId()).orElse(null);
+        User updateUser= userDAO.findById(testUser.getId()).orElse(null);
         Assertions.assertEquals(0, updateUser.getTotalAssets().compareTo(BigDecimal.valueOf(1000)));
 
-        Account updateAccount=accountRepository.findById(testAccount.getId()).orElse(null);
+        Account updateAccount= accountDAO.findById(testAccount.getId()).orElse(null);
         Assertions.assertEquals(0, updateAccount.getBalance().compareTo(BigDecimal.valueOf(1000)));
 
-        Budget updateBudget=budgetRepository.findById(budget1.getId()).orElse(null);
+        Budget updateBudget= budgetDAO.findById(budget1.getId()).orElse(null);
         Assertions.assertNull(updateBudget);
     }
 
@@ -303,30 +303,30 @@ public class LedgerCategoryTest {
     @WithMockUser(username = "Alice")
     public void testDeleteLedgerSubCategory_WithTransactions() throws Exception{
         LedgerCategory foodCategory=new LedgerCategory("Food", CategoryType.EXPENSE, testLedger1);
-        ledgerCategoryRepository.save(foodCategory);
+        ledgerCategoryDAO.save(foodCategory);
         testLedger1.getCategories().add(foodCategory);
 
         LedgerCategory lunch=new LedgerCategory("Lunch", CategoryType.EXPENSE, testLedger1);
         foodCategory.getChildren().add(lunch);
         lunch.setParent(foodCategory);
-        ledgerCategoryRepository.save(lunch);
+        ledgerCategoryDAO.save(lunch);
         testLedger1.getCategories().add(lunch);
 
         Transaction transaction1 = new Expense(LocalDate.now(), BigDecimal.valueOf(10),null, testAccount, testLedger1, lunch);
-        transactionRepository.save(transaction1);
+        transactionDAO.save(transaction1);
         testAccount.addTransaction(transaction1);
         testLedger1.getTransactions().add(transaction1);
         lunch.getTransactions().add(transaction1);
 
         //test delete subcategory with budget
         Budget budget1=new Budget(BigDecimal.valueOf(100), Budget.Period.MONTHLY, lunch, testUser);
-        budgetRepository.save(budget1);
+        budgetDAO.save(budget1);
         lunch.getBudgets().add(budget1);
 
-        accountRepository.save(testAccount);
-        ledgerRepository.save(testLedger1);
-        ledgerCategoryRepository.save(foodCategory);
-        ledgerCategoryRepository.save(lunch);
+        accountDAO.save(testAccount);
+        ledgerDAO.save(testLedger1);
+        ledgerCategoryDAO.save(foodCategory);
+        ledgerCategoryDAO.save(lunch);
 
         mockMvc.perform(delete("/ledger-categories/"+ lunch.getId() +"/delete")
                         .principal(() -> "Alice")
@@ -335,23 +335,23 @@ public class LedgerCategoryTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string("Deleted successfully"));
 
-        Ledger updateLedger = ledgerRepository.findById(testLedger1.getId()).orElseThrow();
+        Ledger updateLedger = ledgerDAO.findById(testLedger1.getId()).orElseThrow();
         Assertions.assertEquals(0, updateLedger.getTransactions().size());
 
-        LedgerCategory updateFoodCategory=ledgerCategoryRepository.findById(foodCategory.getId()).orElse(null);
+        LedgerCategory updateFoodCategory= ledgerCategoryDAO.findById(foodCategory.getId()).orElse(null);
         Assertions.assertEquals(0, updateFoodCategory.getChildren().size());
         Assertions.assertEquals(0, updateFoodCategory.getTransactions().size());
 
-        LedgerCategory updateLunch=ledgerCategoryRepository.findById(lunch.getId()).orElse(null);
+        LedgerCategory updateLunch= ledgerCategoryDAO.findById(lunch.getId()).orElse(null);
         Assertions.assertNull(updateLunch);
 
-        Account updateAccount=accountRepository.findById(testAccount.getId()).orElse(null);
+        Account updateAccount= accountDAO.findById(testAccount.getId()).orElse(null);
         Assertions.assertEquals(0, updateAccount.getBalance().compareTo(new BigDecimal("1000")));
 
-        User updateUser=userRepository.findById(testUser.getId()).orElse(null);
+        User updateUser= userDAO.findById(testUser.getId()).orElse(null);
         Assertions.assertEquals(0, updateUser.getTotalAssets().compareTo(new BigDecimal("1000")));
 
-        Budget updateBudget=budgetRepository.findById(budget1.getId()).orElse(null);
+        Budget updateBudget= budgetDAO.findById(budget1.getId()).orElse(null);
         Assertions.assertNull(updateBudget);
     }
 
@@ -359,21 +359,21 @@ public class LedgerCategoryTest {
     @WithMockUser(username = "Alice")
     public void testDeleteLedgerSubCategory_WithoutTransactions() throws Exception{
         LedgerCategory foodCategory=new LedgerCategory("Food", CategoryType.EXPENSE, testLedger1);
-        ledgerCategoryRepository.save(foodCategory);
+        ledgerCategoryDAO.save(foodCategory);
 
         LedgerCategory mealsCategory=new LedgerCategory("Meals", CategoryType.EXPENSE, testLedger1);
-        ledgerCategoryRepository.save(mealsCategory);
+        ledgerCategoryDAO.save(mealsCategory);
 
         LedgerCategory lunch=new LedgerCategory("Lunch", CategoryType.EXPENSE, testLedger1);
         foodCategory.getChildren().add(lunch);
         lunch.setParent(foodCategory);
-        ledgerCategoryRepository.save(lunch);
+        ledgerCategoryDAO.save(lunch);
 
         //test delete subcategory with transactions migrated to another Subcategory
         LedgerCategory snacks=new LedgerCategory("Snacks", CategoryType.EXPENSE, testLedger1);
         foodCategory.getChildren().add(snacks);
         snacks.setParent(foodCategory);
-        ledgerCategoryRepository.save(snacks);
+        ledgerCategoryDAO.save(snacks);
 
         testLedger1.getCategories().add(foodCategory);
         testLedger1.getCategories().add(mealsCategory);
@@ -382,20 +382,20 @@ public class LedgerCategoryTest {
 
         //test delete subcategory with transactions migrated to another category
         Transaction transaction1 = new Expense(LocalDate.now(), BigDecimal.valueOf(10),null, testAccount, testLedger1, lunch);
-        transactionRepository.save(transaction1);
+        transactionDAO.save(transaction1);
         testAccount.addTransaction(transaction1);
         testLedger1.getTransactions().add(transaction1);
         lunch.getTransactions().add(transaction1);
 
         //test delete subcategory with budget
         Budget budget1=new Budget(BigDecimal.valueOf(100), Budget.Period.MONTHLY, lunch, testUser);
-        budgetRepository.save(budget1);
+        budgetDAO.save(budget1);
         lunch.getBudgets().add(budget1);
 
-        accountRepository.save(testAccount);
-        ledgerRepository.save(testLedger1);
-        ledgerCategoryRepository.save(foodCategory);
-        ledgerCategoryRepository.save(lunch);
+        accountDAO.save(testAccount);
+        ledgerDAO.save(testLedger1);
+        ledgerCategoryDAO.save(foodCategory);
+        ledgerCategoryDAO.save(lunch);
 
         mockMvc.perform(delete("/ledger-categories/"+ lunch.getId() +"/delete")
                         .principal(() -> "Alice")
@@ -418,26 +418,26 @@ public class LedgerCategoryTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string("Deleted successfully"));
 
-        Ledger updateLedger = ledgerRepository.findById(testLedger1.getId()).orElseThrow();
+        Ledger updateLedger = ledgerDAO.findById(testLedger1.getId()).orElseThrow();
         Assertions.assertEquals(1, updateLedger.getTransactions().size());
 
-        LedgerCategory updateFoodCategory=ledgerCategoryRepository.findById(foodCategory.getId()).orElse(null);
+        LedgerCategory updateFoodCategory= ledgerCategoryDAO.findById(foodCategory.getId()).orElse(null);
         Assertions.assertEquals(1, updateFoodCategory.getChildren().size());
         Assertions.assertEquals(0, updateFoodCategory.getTransactions().size());
 
-        LedgerCategory updateLunch=ledgerCategoryRepository.findById(lunch.getId()).orElse(null);
+        LedgerCategory updateLunch= ledgerCategoryDAO.findById(lunch.getId()).orElse(null);
         Assertions.assertNull(updateLunch);
 
-        LedgerCategory updateMealsCategory=ledgerCategoryRepository.findById(mealsCategory.getId()).orElse(null);
+        LedgerCategory updateMealsCategory= ledgerCategoryDAO.findById(mealsCategory.getId()).orElse(null);
         Assertions.assertEquals(1, updateMealsCategory.getTransactions().size());
 
-        Account updateAccount=accountRepository.findById(testAccount.getId()).orElse(null);
+        Account updateAccount= accountDAO.findById(testAccount.getId()).orElse(null);
         Assertions.assertEquals(0, updateAccount.getBalance().compareTo(new BigDecimal("990")));
 
-        User updateUser=userRepository.findById(testUser.getId()).orElse(null);
+        User updateUser= userDAO.findById(testUser.getId()).orElse(null);
         Assertions.assertEquals(0, updateUser.getTotalAssets().compareTo(new BigDecimal("990")));
 
-        Budget updateBudget=budgetRepository.findById(budget1.getId()).orElse(null);
+        Budget updateBudget= budgetDAO.findById(budget1.getId()).orElse(null);
         Assertions.assertNull(updateBudget);
     }
 
@@ -446,11 +446,11 @@ public class LedgerCategoryTest {
     public void testRename() throws Exception{
         LedgerCategory foodCategory=new LedgerCategory("Food", CategoryType.EXPENSE, testLedger1);
         testLedger1.getCategories().add(foodCategory);
-        ledgerCategoryRepository.save(foodCategory);
+        ledgerCategoryDAO.save(foodCategory);
 
         LedgerCategory travelCategory=new LedgerCategory("Travel", CategoryType.EXPENSE, testLedger1);
         testLedger1.getCategories().add(travelCategory);
-        ledgerCategoryRepository.save(travelCategory);
+        ledgerCategoryDAO.save(travelCategory);
 
         mockMvc.perform(put("/ledger-categories/"+foodCategory.getId()+"/rename")
                         .param("newName", "Food")
@@ -470,7 +470,7 @@ public class LedgerCategoryTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string("Renamed successfully"));
 
-        LedgerCategory updateCategory=ledgerCategoryRepository.findByLedgerAndName(testLedger1, "food");
+        LedgerCategory updateCategory= ledgerCategoryDAO.findByLedgerAndName(testLedger1, "food");
         Assertions.assertNotNull(updateCategory);
 
 
@@ -487,38 +487,38 @@ public class LedgerCategoryTest {
     public void testPromote() throws Exception{
         LedgerCategory foodCategory=new LedgerCategory("Food", CategoryType.EXPENSE, testLedger1);
         testLedger1.getCategories().add(foodCategory);
-        ledgerCategoryRepository.save(foodCategory);
+        ledgerCategoryDAO.save(foodCategory);
 
         LedgerCategory mealsCategory=new LedgerCategory("Meals", CategoryType.EXPENSE, testLedger1);
         mealsCategory.setParent(foodCategory);
         foodCategory.getChildren().add(mealsCategory);
         testLedger1.getCategories().add(mealsCategory);
-        ledgerCategoryRepository.save(mealsCategory);
-        ledgerCategoryRepository.save(foodCategory);
+        ledgerCategoryDAO.save(mealsCategory);
+        ledgerCategoryDAO.save(foodCategory);
 
         Transaction transaction1 = new Expense(LocalDate.now(), BigDecimal.valueOf(10),null, testAccount, testLedger1, mealsCategory);
-        transactionRepository.save(transaction1);
+        transactionDAO.save(transaction1);
         testAccount.addTransaction(transaction1);
         testLedger1.getTransactions().add(transaction1);
         mealsCategory.getTransactions().add(transaction1);
 
-        accountRepository.save(testAccount);
-        ledgerRepository.save(testLedger1);
-        ledgerCategoryRepository.save(mealsCategory);
+        accountDAO.save(testAccount);
+        ledgerDAO.save(testLedger1);
+        ledgerCategoryDAO.save(mealsCategory);
 
         mockMvc.perform(put("/ledger-categories/"+ mealsCategory.getId() +"/promote")
                         .principal(() -> "Alice"))
                 .andExpect(status().isOk())
                 .andExpect(content().string("Promoted successfully"));
 
-        LedgerCategory updatedMealsCategory=ledgerCategoryRepository.findByLedgerAndName(testLedger1, "Meals");
+        LedgerCategory updatedMealsCategory= ledgerCategoryDAO.findByLedgerAndName(testLedger1, "Meals");
         Assertions.assertNull(updatedMealsCategory.getParent());
 
-        LedgerCategory updatedFoodCategory=ledgerCategoryRepository.findByLedgerAndName(testLedger1, "Food");
+        LedgerCategory updatedFoodCategory= ledgerCategoryDAO.findByLedgerAndName(testLedger1, "Food");
         Assertions.assertEquals(0, updatedFoodCategory.getChildren().size());
         Assertions.assertEquals(0, updatedFoodCategory.getTransactions().size());
 
-        Ledger updatedLedger=ledgerRepository.findById(testLedger1.getId()).orElse(null);
+        Ledger updatedLedger= ledgerDAO.findById(testLedger1.getId()).orElse(null);
         Assertions.assertEquals(2, updatedLedger.getCategories().size());
     }
 
@@ -527,21 +527,21 @@ public class LedgerCategoryTest {
     public void testDemote() throws Exception{
         LedgerCategory foodCategory=new LedgerCategory("Food", CategoryType.EXPENSE, testLedger1);
         testLedger1.getCategories().add(foodCategory);
-        ledgerCategoryRepository.save(foodCategory);
+        ledgerCategoryDAO.save(foodCategory);
 
         LedgerCategory mealsCategory=new LedgerCategory("Meals", CategoryType.EXPENSE, testLedger1);
         testLedger1.getCategories().add(mealsCategory);
-        ledgerCategoryRepository.save(mealsCategory);
+        ledgerCategoryDAO.save(mealsCategory);
 
         Transaction transaction1 = new Expense(LocalDate.now(), BigDecimal.valueOf(10),null, testAccount, testLedger1, foodCategory);
-        transactionRepository.save(transaction1);
+        transactionDAO.save(transaction1);
         testAccount.addTransaction(transaction1);
         testLedger1.getTransactions().add(transaction1);
         foodCategory.getTransactions().add(transaction1);
 
-        accountRepository.save(testAccount);
-        ledgerRepository.save(testLedger1);
-        ledgerCategoryRepository.save(foodCategory);
+        accountDAO.save(testAccount);
+        ledgerDAO.save(testLedger1);
+        ledgerCategoryDAO.save(foodCategory);
 
 
         mockMvc.perform(put("/ledger-categories/"+ foodCategory.getId() +"/demote")
@@ -550,14 +550,14 @@ public class LedgerCategoryTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string("Demoted successfully"));
 
-        LedgerCategory updateFoodCategory=ledgerCategoryRepository.findByLedgerAndName(testLedger1, "Food");
+        LedgerCategory updateFoodCategory= ledgerCategoryDAO.findByLedgerAndName(testLedger1, "Food");
         Assertions.assertEquals(mealsCategory.getId(), updateFoodCategory.getParent().getId());
 
 
-        LedgerCategory updateMealsCategory=ledgerCategoryRepository.findByLedgerAndName(testLedger1, "Meals");
+        LedgerCategory updateMealsCategory= ledgerCategoryDAO.findByLedgerAndName(testLedger1, "Meals");
         Assertions.assertEquals(1, updateMealsCategory.getChildren().size());
 
-        Ledger updatedLedger=ledgerRepository.findById(testLedger1.getId()).orElse(null);
+        Ledger updatedLedger= ledgerDAO.findById(testLedger1.getId()).orElse(null);
         Assertions.assertEquals(2, updatedLedger.getCategories().size());
     }
 
@@ -566,22 +566,22 @@ public class LedgerCategoryTest {
     public void testDemote_WithSubCategory() throws Exception{
         LedgerCategory foodCategory=new LedgerCategory("Food", CategoryType.EXPENSE, testLedger1);
         testLedger1.getCategories().add(foodCategory);
-        ledgerCategoryRepository.save(foodCategory);
+        ledgerCategoryDAO.save(foodCategory);
 
         LedgerCategory mealsCategory=new LedgerCategory("Meals", CategoryType.EXPENSE, testLedger1);
         testLedger1.getCategories().add(mealsCategory);
-        ledgerCategoryRepository.save(mealsCategory);
+        ledgerCategoryDAO.save(mealsCategory);
 
         LedgerCategory lunchCategory=new LedgerCategory("Lunch", CategoryType.EXPENSE, testLedger1);
         lunchCategory.setParent(foodCategory);
         foodCategory.getChildren().add(lunchCategory);
-        ledgerCategoryRepository.save(lunchCategory);
-        ledgerCategoryRepository.save(foodCategory);
+        ledgerCategoryDAO.save(lunchCategory);
+        ledgerCategoryDAO.save(foodCategory);
 
         Transaction transaction1 = new Expense(LocalDate.now(), BigDecimal.valueOf(10),null, testAccount, testLedger1, foodCategory);
         Transaction transaction2 = new Expense(LocalDate.now(), BigDecimal.valueOf(15),null, testAccount, testLedger1, lunchCategory);
-        transactionRepository.save(transaction1);
-        transactionRepository.save(transaction2);
+        transactionDAO.save(transaction1);
+        transactionDAO.save(transaction2);
         testAccount.addTransaction(transaction1);
         testAccount.addTransaction(transaction2);
         testLedger1.getTransactions().add(transaction1);
@@ -589,10 +589,10 @@ public class LedgerCategoryTest {
         foodCategory.getTransactions().add(transaction1);
         lunchCategory.getTransactions().add(transaction2);
 
-        accountRepository.save(testAccount);
-        ledgerRepository.save(testLedger1);
-        ledgerCategoryRepository.save(foodCategory);
-        ledgerCategoryRepository.save(lunchCategory);
+        accountDAO.save(testAccount);
+        ledgerDAO.save(testLedger1);
+        ledgerCategoryDAO.save(foodCategory);
+        ledgerCategoryDAO.save(lunchCategory);
 
         mockMvc.perform(put("/ledger-categories/"+ foodCategory.getId() +"/demote")
                         .principal(() -> "Alice")
@@ -606,27 +606,27 @@ public class LedgerCategoryTest {
     public void testChangeParent() throws Exception{
         LedgerCategory foodCategory=new LedgerCategory("Food", CategoryType.EXPENSE, testLedger1);
         testLedger1.getCategories().add(foodCategory);
-        ledgerCategoryRepository.save(foodCategory);
+        ledgerCategoryDAO.save(foodCategory);
 
         LedgerCategory lunch=new LedgerCategory("Lunch", CategoryType.EXPENSE, testLedger1);
-        ledgerCategoryRepository.save(lunch);
+        ledgerCategoryDAO.save(lunch);
         foodCategory.getChildren().add(lunch);
         lunch.setParent(foodCategory);
         testLedger1.getCategories().add(lunch);
 
         Transaction transaction1 = new Expense(LocalDate.now(), BigDecimal.valueOf(10),null, testAccount, testLedger1, lunch);
-        transactionRepository.save(transaction1);
+        transactionDAO.save(transaction1);
         testAccount.addTransaction(transaction1);
         testLedger1.getTransactions().add(transaction1);
         lunch.getTransactions().add(transaction1);
 
         LedgerCategory mealsCategory=new LedgerCategory("Meals", CategoryType.EXPENSE, testLedger1);
         testLedger1.getCategories().add(mealsCategory);
-        ledgerCategoryRepository.save(mealsCategory);
+        ledgerCategoryDAO.save(mealsCategory);
 
-        accountRepository.save(testAccount);
-        ledgerRepository.save(testLedger1);
-        ledgerCategoryRepository.save(lunch);
+        accountDAO.save(testAccount);
+        ledgerDAO.save(testLedger1);
+        ledgerCategoryDAO.save(lunch);
 
         mockMvc.perform(put("/ledger-categories/"+ foodCategory.getId() +"/change-parent")
                         .principal(() -> "Alice")
@@ -640,13 +640,13 @@ public class LedgerCategoryTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string("Parent category changed successfully"));
 
-        LedgerCategory updateLunch=ledgerCategoryRepository.findByLedgerAndName(testLedger1, "Lunch");
+        LedgerCategory updateLunch= ledgerCategoryDAO.findByLedgerAndName(testLedger1, "Lunch");
         Assertions.assertEquals(mealsCategory.getId(), updateLunch.getParent().getId());
 
-        LedgerCategory updateMealsCategory=ledgerCategoryRepository.findByLedgerAndName(testLedger1, "Meals");
+        LedgerCategory updateMealsCategory= ledgerCategoryDAO.findByLedgerAndName(testLedger1, "Meals");
         Assertions.assertEquals(1, updateMealsCategory.getChildren().size());
 
-        LedgerCategory updateFoodCategory=ledgerCategoryRepository.findByLedgerAndName(testLedger1, "Food");
+        LedgerCategory updateFoodCategory= ledgerCategoryDAO.findByLedgerAndName(testLedger1, "Food");
         Assertions.assertEquals(0, updateFoodCategory.getChildren().size());
 
     }
@@ -655,11 +655,11 @@ public class LedgerCategoryTest {
     @WithMockUser(username = "Alice")
     public void testGetTransactionForMonth() throws Exception {
         LedgerCategory foodCategory = new LedgerCategory("Food", CategoryType.EXPENSE, testLedger1);
-        ledgerCategoryRepository.save(foodCategory);
+        ledgerCategoryDAO.save(foodCategory);
         testLedger1.getCategories().add(foodCategory);
 
         LedgerCategory lunchCategory = new LedgerCategory("Lunch", CategoryType.EXPENSE, testLedger1);
-        ledgerCategoryRepository.save(lunchCategory);
+        ledgerCategoryDAO.save(lunchCategory);
         lunchCategory.setParent(foodCategory);
         foodCategory.getChildren().add(lunchCategory);
         testLedger1.getCategories().add(lunchCategory);
@@ -671,7 +671,7 @@ public class LedgerCategoryTest {
                 testLedger1,
                 foodCategory
         );
-        transactionRepository.save(tx1);
+        transactionDAO.save(tx1);
         testLedger1.getTransactions().add(tx1);
         testAccount.addTransaction(tx1);
         foodCategory.getTransactions().add(tx1);
@@ -683,15 +683,15 @@ public class LedgerCategoryTest {
                 testLedger1,
                 lunchCategory
         );
-        transactionRepository.save(tx2);
+        transactionDAO.save(tx2);
         testLedger1.getTransactions().add(tx2);
         testAccount.addTransaction(tx2);
         lunchCategory.getTransactions().add(tx2);
 
-        ledgerCategoryRepository.save(foodCategory);
-        ledgerCategoryRepository.save(lunchCategory);
-        ledgerRepository.save(testLedger1);
-        accountRepository.save(testAccount);
+        ledgerCategoryDAO.save(foodCategory);
+        ledgerCategoryDAO.save(lunchCategory);
+        ledgerDAO.save(testLedger1);
+        accountDAO.save(testAccount);
 
         mockMvc.perform(get("/ledger-categories/{id}/all-transactions-for-month", foodCategory.getId())
                         .param("month", "2025-06")
@@ -715,7 +715,7 @@ public class LedgerCategoryTest {
                 testLedger1,
                 lunchCategory
         );
-        transactionRepository.save(tx3);
+        transactionDAO.save(tx3);
         testLedger1.getTransactions().add(tx3);
         testAccount.addTransaction(tx3);
         lunchCategory.getTransactions().add(tx3);
@@ -727,15 +727,15 @@ public class LedgerCategoryTest {
                 testLedger1,
                 foodCategory
         );
-        transactionRepository.save(tx4);
+        transactionDAO.save(tx4);
         testLedger1.getTransactions().add(tx4);
         testAccount.addTransaction(tx4);
         foodCategory.getTransactions().add(tx4);
 
-        ledgerCategoryRepository.save(foodCategory);
-        ledgerCategoryRepository.save(lunchCategory);
-        ledgerRepository.save(testLedger1);
-        accountRepository.save(testAccount);
+        ledgerCategoryDAO.save(foodCategory);
+        ledgerCategoryDAO.save(lunchCategory);
+        ledgerDAO.save(testLedger1);
+        accountDAO.save(testAccount);
 
         mockMvc.perform(get("/ledger-categories/{id}/all-transactions-for-month", foodCategory.getId())
                         .principal(() -> "Alice"))
