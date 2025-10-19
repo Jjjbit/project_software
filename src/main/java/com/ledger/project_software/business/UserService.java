@@ -1,22 +1,30 @@
 package com.ledger.project_software.business;
 
+import com.ledger.project_software.domain.Account;
 import com.ledger.project_software.domain.Ledger;
 import com.ledger.project_software.domain.PasswordUtils;
 import com.ledger.project_software.domain.User;
+import com.ledger.project_software.orm.AccountDAO;
+import com.ledger.project_software.orm.LedgerDAO;
 import com.ledger.project_software.orm.UserDAO;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 
 @Service
 public class UserService {
     private final UserDAO userDAO;
+    private final AccountDAO accountDAO;
+    private final LedgerDAO ledgerDAO;
 
-    public UserService(UserDAO userDAO) {
+    public UserService(UserDAO userDAO, AccountDAO accountDAO, LedgerDAO ledgerDAO) {
         this.userDAO = userDAO;
+        this.accountDAO = accountDAO;
+        this.ledgerDAO = ledgerDAO;
     }
 
     @Transactional
@@ -79,6 +87,16 @@ public class UserService {
         response.put("totalBorrowing", user.getTotalBorrowing());
 
         return response;
+    }
+    public List<Ledger> getUserLedgers(User user) {
+        validateUser(user);
+        //return user.getLedgers();
+        return ledgerDAO.findByOwner(user);
+    }
+    public List<Account> getUserAccounts(User user) {
+        validateUser(user);
+        //return user.getAccounts();
+        return accountDAO.findByOwnerId(user.getId());
     }
 
     private void validateUser(User user) {
