@@ -26,6 +26,7 @@ public class CategoryInitializer {
             Category education = new Category("Education", CategoryType.EXPENSE);
             Category shopping = new Category("Shopping", CategoryType.EXPENSE);
             Category gifts = new Category("Gifts", CategoryType.EXPENSE);
+            Category electronics = new Category("Electronics", CategoryType.EXPENSE);
 
             categoryRepository.save(food);
             categoryRepository.save(transport);
@@ -37,6 +38,7 @@ public class CategoryInitializer {
             categoryRepository.save(education);
             categoryRepository.save(shopping);
             categoryRepository.save(gifts);
+            categoryRepository.save(electronics);
 
             Category breakfast = new Category("Breakfast", CategoryType.EXPENSE);
             Category lunch = new Category("Lunch", CategoryType.EXPENSE);
