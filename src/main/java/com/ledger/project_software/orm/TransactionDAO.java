@@ -85,21 +85,17 @@ public interface TransactionDAO extends JpaRepository<Transaction, Long> {
 
     @Query("SELECT t FROM Transaction t " +
             "WHERE t.category.id IN :categoryIds " +
-            "AND t.ledger.owner.id = :ownerId " +
             "AND t.date BETWEEN :start AND :end " +
             "ORDER BY t.date DESC")
     List<Transaction> findByCategoryIdsAndUserId(@Param("categoryIds") List<Long> categoryIds,
                                                  @Param("start") LocalDate start,
-                                                 @Param("end") LocalDate end,
-                                                 @Param("ownerId") Long ownerId);
+                                                 @Param("end") LocalDate end);
 
     @Query("SELECT t FROM Transaction t " +
             "WHERE t.category.id = :categoryId " +
-            "AND t.ledger.owner.id = :ownerId " +
             "AND t.date BETWEEN :start AND :end " +
             "ORDER BY t.date DESC")
     List<Transaction> findByCategoryIdAndUserId(@Param("categoryId") Long categoryId,
                                                 @Param("start") LocalDate start,
-                                                @Param("end") LocalDate end,
-                                                @Param("ownerId") Long ownerId);
+                                                @Param("end") LocalDate end);
 }
