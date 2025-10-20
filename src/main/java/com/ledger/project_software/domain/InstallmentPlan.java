@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDate;
 
 @Entity
 public class InstallmentPlan {
@@ -40,13 +41,18 @@ public class InstallmentPlan {
     @Column(name = "remaining_amount", precision = 15, scale = 2)
     private BigDecimal remainingAmount;
 
+    @Column
+    private LocalDate repaymentStartDate;
+
     public InstallmentPlan() {}
     public InstallmentPlan(BigDecimal totalAmount,
                            int totalPeriods,
                            BigDecimal feeRate,
                            int paidPeriods,
                            FeeStrategy feeStrategy,
-                           Account linkedAccount) {
+                           Account linkedAccount,
+                           LocalDate repaymentStartDate) {
+        this.repaymentStartDate = repaymentStartDate;
         this.totalAmount = totalAmount;
         this.totalPeriods = totalPeriods;
         this.feeRate = feeRate;
