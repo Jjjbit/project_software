@@ -58,6 +58,7 @@ public class LedgerController {
 
         Ledger ledger=new Ledger(name, owner);
         ledgerDAO.save(ledger);
+        owner.getLedgers().add(ledger);
 
         List<Category> templateCategories = categoryDAO.findByParentIsNull();
 
