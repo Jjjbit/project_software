@@ -399,13 +399,13 @@ public class LedgerCategoryController {
               }
               //find all transactions of this category and its subcategories
               transactions = transactionDAO.findByCategoryIdsAndUserId(
-                      categoryIds, startDate, endDate, user.getId()
+                      categoryIds, startDate, endDate
               );
 
           } else { //if it's a subcategory
               //find all transactions of this subcategory
               transactions = transactionDAO.findByCategoryIdAndUserId(
-                        id, startDate, endDate, user.getId()
+                        id, startDate, endDate
               );
           }
 
