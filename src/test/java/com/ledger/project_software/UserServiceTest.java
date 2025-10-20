@@ -24,8 +24,6 @@ public class UserServiceTest {
 
     //functional test
     @Autowired
-    private AccountDAO accountDAO;
-    @Autowired
     private UserDAO userDAO;
     @Autowired
     private UserService userService;
@@ -37,7 +35,17 @@ public class UserServiceTest {
     public void testRegisterAndVerifyInDatabase() {
         userService.register("newuser", "secure123");
 
-        assertNotNull(userDAO.findByUsername("newuser"));
+        User registeredUser= userDAO.findByUsername("newuser");
+        assertNotNull(registeredUser);
+        assertEquals("newuser", registeredUser.getUsername());
+        assertTrue(PasswordUtils.verify("secure123", registeredUser.getPassword()));
+        assertEquals(1, userDAO.findAll().size());
+        assertEquals(1, registeredUser.getLedgers().size());
+
+        Ledger defaultLedger = registeredUser.getLedgers().get(0);
+        assertEquals("Default Ledger", defaultLedger.getName());
+        assertEquals(17, defaultLedger.getCategories().size());
+
     }
 
     @Test
