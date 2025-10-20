@@ -41,9 +41,9 @@ public class TransactionTest {
     private LedgerCategory testCategory1;
     private LedgerCategory testCategory2;
     @Autowired
-    private TransactionDAO transactionRepository;
+    private TransactionDAO transactionDAO;
     @Autowired
-    private LedgerCategoryDAO ledgerCategoryRepository;
+    private LedgerCategoryDAO ledgerCategoryDAO;
 
     @BeforeEach
     public void setUp(){
@@ -65,9 +65,9 @@ public class TransactionTest {
         testUser.getAccounts().add(testAccount);
 
         testCategory1=new LedgerCategory("Category 1", CategoryType.EXPENSE, testLedger1);
-        ledgerCategoryRepository.save(testCategory1);
+        ledgerCategoryDAO.save(testCategory1);
         testCategory2=new LedgerCategory("Category 2", CategoryType.INCOME, testLedger1);
-        ledgerCategoryRepository.save(testCategory2);
+        ledgerCategoryDAO.save(testCategory2);
 
         testLedger1.getCategories().add(testCategory1);
         testLedger1.getCategories().add(testCategory2);
@@ -89,7 +89,7 @@ public class TransactionTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string("Transaction created successfully"));
 
-        Transaction createdTransaction=transactionRepository.findAll().get(0);
+        Transaction createdTransaction= transactionDAO.findAll().get(0);
         Assertions.assertNotNull(createdTransaction);
 
         Account updatedAccount = accountDAO.findById(testAccount.getId()).orElse(null);
@@ -101,7 +101,7 @@ public class TransactionTest {
         Ledger updatedLedger= ledgerDAO.findById(testLedger1.getId()).orElse(null);
         Assertions.assertTrue(updatedLedger.getTransactions().contains(createdTransaction));
 
-        LedgerCategory updatedCategory=ledgerCategoryRepository.findById(testCategory1.getId()).orElse(null);
+        LedgerCategory updatedCategory= ledgerCategoryDAO.findById(testCategory1.getId()).orElse(null);
         Assertions.assertTrue(updatedCategory.getTransactions().contains(createdTransaction));
 
         User updatedUser= userDAO.findById(testUser.getId()).orElse(null);
@@ -122,7 +122,7 @@ public class TransactionTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string("Transaction created successfully"));
 
-        Transaction createdTransaction = transactionRepository.findAll().get(0);
+        Transaction createdTransaction = transactionDAO.findAll().get(0);
         Assertions.assertNotNull(createdTransaction);
 
         Account updatedAccount = accountDAO.findById(testAccount.getId()).orElse(null);
@@ -134,7 +134,7 @@ public class TransactionTest {
         Ledger updatedLedger = ledgerDAO.findById(testLedger1.getId()).orElse(null);
         Assertions.assertTrue(updatedLedger.getTransactions().contains(createdTransaction));
 
-        LedgerCategory updatedCategory=ledgerCategoryRepository.findById(testCategory2.getId()).orElse(null);
+        LedgerCategory updatedCategory= ledgerCategoryDAO.findById(testCategory2.getId()).orElse(null);
         Assertions.assertTrue(updatedCategory.getTransactions().contains(createdTransaction));
 
         User updatedUser = userDAO.findById(testUser.getId()).orElse(null);
@@ -167,7 +167,7 @@ public class TransactionTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string("Transaction created successfully"));
 
-        Transaction createdTransaction = transactionRepository.findAll().get(0);
+        Transaction createdTransaction = transactionDAO.findAll().get(0);
         Assertions.assertNotNull(createdTransaction);
 
         Account updatedAccount1 = accountDAO.findById(testAccount.getId()).orElse(null);
@@ -199,14 +199,14 @@ public class TransactionTest {
                 testLedger1,
                 testCategory1
         );
-        transactionRepository.save(tx1);
+        transactionDAO.save(tx1);
         testAccount.addTransaction(tx1);
         testLedger1.getTransactions().add(tx1);
         //testCategory1.addTransaction(tx1);
         testCategory1.getTransactions().add(tx1);
         accountDAO.save(testAccount);
         ledgerDAO.save(testLedger1);
-        ledgerCategoryRepository.save(testCategory1);
+        ledgerCategoryDAO.save(testCategory1);
 
         mockMvc.perform(delete("/transactions/"+tx1.getId()+ "/delete")
                         .principal(() -> "Alice")
@@ -225,8 +225,10 @@ public class TransactionTest {
         User updatedUser = userDAO.findById(testUser.getId()).orElse(null);
         Assertions.assertEquals(0, updatedUser.getTotalAssets().compareTo(BigDecimal.valueOf(1000)));
 
-        LedgerCategory updatedCategory=ledgerCategoryRepository.findById(testCategory1.getId()).orElse(null);
+        LedgerCategory updatedCategory= ledgerCategoryDAO.findById(testCategory1.getId()).orElse(null);
         Assertions.assertFalse(updatedCategory.getTransactions().contains(tx1));
+
+        Assertions.assertEquals(0, transactionDAO.findAll().size());
 
     }
 
@@ -241,14 +243,14 @@ public class TransactionTest {
                 testLedger1,
                 testCategory2
         );
-        transactionRepository.save(tx1);
+        transactionDAO.save(tx1);
         testAccount.addTransaction(tx1);
         testLedger1.getTransactions().add(tx1);
         //testCategory2.addTransaction(tx1);
         testCategory2.getTransactions().add(tx1);
         accountDAO.save(testAccount);
         ledgerDAO.save(testLedger1);
-        ledgerCategoryRepository.save(testCategory2);
+        ledgerCategoryDAO.save(testCategory2);
 
         mockMvc.perform(delete("/transactions/"+tx1.getId()+ "/delete")
                         .principal(() -> "Alice")
@@ -267,7 +269,7 @@ public class TransactionTest {
         User updatedUser = userDAO.findById(testUser.getId()).orElse(null);
         Assertions.assertEquals(0, updatedUser.getTotalAssets().compareTo(BigDecimal.valueOf(1000)));
 
-        LedgerCategory updatedCategory=ledgerCategoryRepository.findById(testCategory2.getId()).orElse(null);
+        LedgerCategory updatedCategory= ledgerCategoryDAO.findById(testCategory2.getId()).orElse(null);
         Assertions.assertFalse(updatedCategory.getTransactions().contains(tx1));
     }
 
@@ -294,7 +296,7 @@ public class TransactionTest {
                 BigDecimal.valueOf(300),
                 testLedger1
         );
-        transactionRepository.save(tx1);
+        transactionDAO.save(tx1);
         testAccount.addTransaction(tx1);
         testAccount2.addTransaction(tx1);
         testLedger1.getTransactions().add(tx1);
@@ -324,7 +326,7 @@ public class TransactionTest {
         User updatedUser = userDAO.findById(testUser.getId()).orElse(null);
         Assertions.assertEquals(0, updatedUser.getTotalAssets().compareTo(BigDecimal.valueOf(1500)));
 
-        LedgerCategory updatedCategory=ledgerCategoryRepository.findById(testCategory2.getId()).orElse(null);
+        LedgerCategory updatedCategory= ledgerCategoryDAO.findById(testCategory2.getId()).orElse(null);
         Assertions.assertFalse(updatedCategory.getTransactions().contains(tx1));
     }
 
@@ -339,7 +341,7 @@ public class TransactionTest {
                 testLedger1,
                 testCategory1
         );
-        transactionRepository.save(tx1);
+        transactionDAO.save(tx1);
 
         testAccount.addTransaction(tx1);
         testLedger1.getTransactions().add(tx1);
@@ -347,7 +349,7 @@ public class TransactionTest {
 
         accountDAO.save(testAccount);
         ledgerDAO.save(testLedger1);
-        ledgerCategoryRepository.save(testCategory1);
+        ledgerCategoryDAO.save(testCategory1);
 
         mockMvc.perform(put("/transactions/"+tx1.getId()+ "/edit")
                         .principal(() -> "Alice")
@@ -358,7 +360,7 @@ public class TransactionTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string("Edited successfully"));
 
-        Transaction updatedTx = transactionRepository.findById(tx1.getId()).orElse(null);
+        Transaction updatedTx = transactionDAO.findById(tx1.getId()).orElse(null);
         Assertions.assertEquals(LocalDate.of(2025,11,1), updatedTx.getDate());
         Assertions.assertEquals("Updated Expense", updatedTx.getNote());
         Assertions.assertEquals(0, updatedTx.getAmount().compareTo(BigDecimal.valueOf(150)));
@@ -385,7 +387,7 @@ public class TransactionTest {
                 testLedger1,
                 testCategory1
         );
-        transactionRepository.save(tx1);
+        transactionDAO.save(tx1);
 
         testAccount.addTransaction(tx1);
         testLedger1.getTransactions().add(tx1);
@@ -393,7 +395,7 @@ public class TransactionTest {
 
         accountDAO.save(testAccount);
         ledgerDAO.save(testLedger1);
-        ledgerCategoryRepository.save(testCategory1);
+        ledgerCategoryDAO.save(testCategory1);
 
         BasicAccount testAccount2 = new BasicAccount("Test Account 2",
                 BigDecimal.valueOf(500),
@@ -417,7 +419,7 @@ public class TransactionTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string("Edited successfully"));
 
-        Transaction updatedTx = transactionRepository.findById(tx1.getId()).orElse(null);
+        Transaction updatedTx = transactionDAO.findById(tx1.getId()).orElse(null);
         Assertions.assertEquals(LocalDate.of(2025,11,1), updatedTx.getDate());
         Assertions.assertEquals("Updated Expense", updatedTx.getNote());
         Assertions.assertEquals(0, updatedTx.getAmount().compareTo(BigDecimal.valueOf(150)));
@@ -445,7 +447,7 @@ public class TransactionTest {
                 testLedger1,
                 testCategory1
         );
-        transactionRepository.save(tx1);
+        transactionDAO.save(tx1);
 
         testAccount.addTransaction(tx1);
         testLedger1.getTransactions().add(tx1);
@@ -453,7 +455,7 @@ public class TransactionTest {
 
         accountDAO.save(testAccount);
         ledgerDAO.save(testLedger1);
-        ledgerCategoryRepository.save(testCategory1);
+        ledgerCategoryDAO.save(testCategory1);
 
         BasicAccount testAccount2 = new BasicAccount("Test Account 2",
                 BigDecimal.valueOf(500),
@@ -476,7 +478,7 @@ public class TransactionTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string("Edited successfully"));
 
-        Transaction updatedTx = transactionRepository.findById(tx1.getId()).orElse(null);
+        Transaction updatedTx = transactionDAO.findById(tx1.getId()).orElse(null);
 
         Account updatedAccount = accountDAO.findById(testAccount.getId()).orElse(null);
         assert (updatedAccount.getBalance().compareTo(BigDecimal.valueOf(1000)) == 0);
@@ -504,7 +506,7 @@ public class TransactionTest {
                 testLedger1,
                 testCategory2
         );
-        transactionRepository.save(tx1);
+        transactionDAO.save(tx1);
 
         testAccount.addTransaction(tx1);
         testLedger1.getTransactions().add(tx1);
@@ -512,7 +514,7 @@ public class TransactionTest {
 
         accountDAO.save(testAccount);
         ledgerDAO.save(testLedger1);
-        ledgerCategoryRepository.save(testCategory2);
+        ledgerCategoryDAO.save(testCategory2);
 
         mockMvc.perform(put("/transactions/"+tx1.getId()+ "/edit")
                         .principal(() -> "Alice")
@@ -523,7 +525,7 @@ public class TransactionTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string("Edited successfully"));
 
-        Transaction updatedTx = transactionRepository.findById(tx1.getId()).orElse(null);
+        Transaction updatedTx = transactionDAO.findById(tx1.getId()).orElse(null);
         Assertions.assertEquals(LocalDate.of(2025,11,1), updatedTx.getDate());
         Assertions.assertEquals("Updated Income", updatedTx.getNote());
         Assertions.assertEquals(0, updatedTx.getAmount().compareTo(BigDecimal.valueOf(250)));
@@ -548,7 +550,7 @@ public class TransactionTest {
                 testLedger1,
                 testCategory2
         );
-        transactionRepository.save(tx1);
+        transactionDAO.save(tx1);
 
         testAccount.addTransaction(tx1);
         testLedger1.getTransactions().add(tx1);
@@ -556,7 +558,7 @@ public class TransactionTest {
 
         accountDAO.save(testAccount);
         ledgerDAO.save(testLedger1);
-        ledgerCategoryRepository.save(testCategory2);
+        ledgerCategoryDAO.save(testCategory2);
 
         BasicAccount testAccount2 = new BasicAccount("Test Account 2",
                 BigDecimal.valueOf(500),
@@ -580,7 +582,7 @@ public class TransactionTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string("Edited successfully"));
 
-        Transaction updatedTx = transactionRepository.findById(tx1.getId()).orElse(null);
+        Transaction updatedTx = transactionDAO.findById(tx1.getId()).orElse(null);
         Assertions.assertEquals(LocalDate.of(2025,11,1), updatedTx.getDate());
         Assertions.assertEquals("Updated Income", updatedTx.getNote());
         Assertions.assertEquals(0, updatedTx.getAmount().compareTo(BigDecimal.valueOf(250)));
@@ -608,7 +610,7 @@ public class TransactionTest {
                 testLedger1,
                 testCategory2
         );
-        transactionRepository.save(tx1);
+        transactionDAO.save(tx1);
 
         testAccount.addTransaction(tx1);
         testLedger1.getTransactions().add(tx1);
@@ -616,7 +618,7 @@ public class TransactionTest {
 
         accountDAO.save(testAccount);
         ledgerDAO.save(testLedger1);
-        ledgerCategoryRepository.save(testCategory2);
+        ledgerCategoryDAO.save(testCategory2);
 
         BasicAccount testAccount2 = new BasicAccount("Test Account 2",
                 BigDecimal.valueOf(500),
@@ -639,7 +641,7 @@ public class TransactionTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string("Edited successfully"));
 
-        Transaction updatedTx = transactionRepository.findById(tx1.getId()).orElse(null);
+        Transaction updatedTx = transactionDAO.findById(tx1.getId()).orElse(null);
         Assertions.assertEquals(LocalDate.of(2025,11,1), updatedTx.getDate());
         Assertions.assertEquals("Updated Income", updatedTx.getNote());
 
@@ -677,7 +679,7 @@ public class TransactionTest {
                 BigDecimal.valueOf(300),
                 testLedger1
         );
-        transactionRepository.save(tx1);
+        transactionDAO.save(tx1);
         testAccount.addTransaction(tx1);
         testAccount2.addTransaction(tx1);
         testLedger1.getTransactions().add(tx1);
@@ -694,7 +696,7 @@ public class TransactionTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string("Edited successfully"));
 
-        Transaction updatedTx = transactionRepository.findById(tx1.getId()).orElse(null);
+        Transaction updatedTx = transactionDAO.findById(tx1.getId()).orElse(null);
         Assertions.assertEquals(LocalDate.of(2025,11,1), updatedTx.getDate());
         Assertions.assertEquals("Updated Transfer", updatedTx.getNote());
         Assertions.assertEquals(0, updatedTx.getAmount().compareTo(BigDecimal.valueOf(350)));
@@ -733,7 +735,7 @@ public class TransactionTest {
                 BigDecimal.valueOf(300),
                 testLedger1
         );
-        transactionRepository.save(tx1);
+        transactionDAO.save(tx1);
         testAccount.addTransaction(tx1);
         testAccount2.addTransaction(tx1);
         testLedger1.getTransactions().add(tx1);
@@ -764,7 +766,7 @@ public class TransactionTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string("Edited successfully"));
 
-        Transaction updatedTx = transactionRepository.findById(tx1.getId()).orElse(null);
+        Transaction updatedTx = transactionDAO.findById(tx1.getId()).orElse(null);
         Assertions.assertEquals(LocalDate.of(2025,11,1), updatedTx.getDate());
         Assertions.assertEquals("Updated Transfer", updatedTx.getNote());
         Assertions.assertEquals(0, updatedTx.getAmount().compareTo(BigDecimal.valueOf(350)));
@@ -813,7 +815,7 @@ public class TransactionTest {
                 BigDecimal.valueOf(300),
                 testLedger1
         );
-        transactionRepository.save(tx1);
+        transactionDAO.save(tx1);
         testAccount.addTransaction(tx1);
         testAccount2.addTransaction(tx1);
         testLedger1.getTransactions().add(tx1);
@@ -841,7 +843,7 @@ public class TransactionTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string("Edited successfully"));
 
-        Transaction updatedTx = transactionRepository.findById(tx1.getId()).orElse(null);
+        Transaction updatedTx = transactionDAO.findById(tx1.getId()).orElse(null);
         Assertions.assertEquals(testAccount3.getId(), updatedTx.getFromAccount().getId());
         Assertions.assertEquals(testAccount.getId(), updatedTx.getToAccount().getId());
 
