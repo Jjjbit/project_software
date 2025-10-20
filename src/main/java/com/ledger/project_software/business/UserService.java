@@ -20,11 +20,13 @@ public class UserService {
     private final UserDAO userDAO;
     private final AccountDAO accountDAO;
     private final LedgerDAO ledgerDAO;
+    private final LedgerService ledgerService;
 
-    public UserService(UserDAO userDAO, AccountDAO accountDAO, LedgerDAO ledgerDAO) {
+    public UserService(UserDAO userDAO, AccountDAO accountDAO, LedgerDAO ledgerDAO, LedgerService ledgerService) {
         this.userDAO = userDAO;
         this.accountDAO = accountDAO;
         this.ledgerDAO = ledgerDAO;
+        this.ledgerService = ledgerService;
     }
 
     @Transactional
@@ -45,9 +47,8 @@ public class UserService {
             throw new IllegalArgumentException("Username must be between 3 and 20 characters long");
         }
         User user = new User(username, PasswordUtils.hash(password));
-        Ledger defaultLedger = new Ledger("Default Ledger", user);
-        user.getLedgers().add(defaultLedger);
         userDAO.save(user);
+        ledgerService.createLedger("Default Ledger", user);
         return user;
     }
 
