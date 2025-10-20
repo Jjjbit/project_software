@@ -381,7 +381,8 @@ public class AccountTest {
                 BigDecimal.valueOf(0), // fee rate
                 1, // repaid periods
                 InstallmentPlan.FeeStrategy.EVENLY_SPLIT,
-                account // linked account
+                account, // linked account
+                LocalDate.now()
         );
         installmentPlanDAO.save(installmentPlan);
         ((CreditAccount) account).addInstallmentPlan(installmentPlan);
@@ -468,7 +469,8 @@ public class AccountTest {
                 BigDecimal.valueOf(0), // fee rate
                 1, // repaid periods
                 InstallmentPlan.FeeStrategy.EVENLY_SPLIT,
-                account // linked account
+                account, // linked account
+                LocalDate.now()
         );
         installmentPlanDAO.save(installmentPlan);
         ((CreditAccount) account).addInstallmentPlan(installmentPlan);
