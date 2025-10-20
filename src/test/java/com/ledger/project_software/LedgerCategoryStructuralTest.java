@@ -993,7 +993,7 @@ public class LedgerCategoryStructuralTest {
         Mockito.when(ledgerCategoryDAO.findById(10L)).thenReturn(Optional.of(parentCategory));
         Mockito.when(ledgerCategoryDAO.findByParentId(10L)).thenReturn(List.of(subCategory));
         Mockito.when(transactionDAO.findByCategoryIdsAndUserId(
-                        anyList(), any(LocalDate.class), any(LocalDate.class), eq(1L)))
+                        anyList(), any(LocalDate.class), any(LocalDate.class)))
                 .thenReturn(transactions);
 
         ResponseEntity<List<Transaction>> response = ledgerCategoryController
@@ -1019,7 +1019,7 @@ public class LedgerCategoryStructuralTest {
         Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
         Mockito.when(ledgerCategoryDAO.findById(11L)).thenReturn(Optional.of(subCategory));
         Mockito.when(transactionDAO.findByCategoryIdAndUserId(
-                        eq(11L), any(LocalDate.class), any(LocalDate.class), eq(1L)))
+                        eq(11L), any(LocalDate.class), any(LocalDate.class)))
                 .thenReturn(transactions);
 
         ResponseEntity<List<Transaction>> response = ledgerCategoryController
@@ -1035,7 +1035,7 @@ public class LedgerCategoryStructuralTest {
         Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
         Mockito.when(ledgerCategoryDAO.findById(11L)).thenReturn(Optional.of(subCategory));
         Mockito.when(transactionDAO.findByCategoryIdAndUserId(
-                        eq(11L), any(LocalDate.class), any(LocalDate.class), eq(1L)))
+                        eq(11L), any(LocalDate.class), any(LocalDate.class)))
                 .thenReturn(List.of());
 
         ResponseEntity<List<Transaction>> response = ledgerCategoryController
@@ -1099,7 +1099,7 @@ public class LedgerCategoryStructuralTest {
         Mockito.when(ledgerCategoryDAO.findById(10L)).thenReturn(Optional.of(parentCategory));
         Mockito.when(ledgerCategoryDAO.findByParentId(10L)).thenReturn(List.of());
         Mockito.when(transactionDAO.findByCategoryIdsAndUserId(
-                        anyList(), any(LocalDate.class), any(LocalDate.class), eq(1L)))
+                        anyList(), any(LocalDate.class), any(LocalDate.class)))
                 .thenReturn(List.of(tx1));
 
         ResponseEntity<List<Transaction>> response = ledgerCategoryController
@@ -1116,7 +1116,7 @@ public class LedgerCategoryStructuralTest {
         Mockito.when(userDAO.findByUsername("Alice")).thenReturn(testUser);
         Mockito.when(ledgerCategoryDAO.findById(11L)).thenReturn(Optional.of(subCategory));
         Mockito.when(transactionDAO.findByCategoryIdAndUserId(
-                        eq(11L), any(LocalDate.class), any(LocalDate.class), eq(1L)))
+                        eq(11L), any(LocalDate.class), any(LocalDate.class)))
                 .thenReturn(List.of());
 
         ResponseEntity<List<Transaction>> response = ledgerCategoryController
