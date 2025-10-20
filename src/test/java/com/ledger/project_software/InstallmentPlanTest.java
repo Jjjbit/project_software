@@ -19,6 +19,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 
 @SpringBootTest(classes = com.ledger.project_software.ProjectSoftwareApplication.class)
 @Transactional
@@ -133,7 +134,8 @@ public class InstallmentPlanTest {
                 BigDecimal.valueOf(0.1),
                 1,
                 InstallmentPlan.FeeStrategy.EVENLY_SPLIT,
-                testAccount
+                testAccount,
+                LocalDate.now()
         );
         installmentPlanRepository.save(plan);
         testAccount.addInstallmentPlan(plan);
@@ -189,7 +191,8 @@ public class InstallmentPlanTest {
                 BigDecimal.valueOf(0.1),
                 1,
                 InstallmentPlan.FeeStrategy.EVENLY_SPLIT,
-                testAccount
+                testAccount,
+                LocalDate.now()
         );
         installmentPlanRepository.save(plan);
         testAccount.addInstallmentPlan(plan);
@@ -237,7 +240,8 @@ public class InstallmentPlanTest {
                 BigDecimal.valueOf(0.1),
                 1,
                 InstallmentPlan.FeeStrategy.EVENLY_SPLIT,
-                testAccount
+                testAccount,
+                LocalDate.now()
         );
         installmentPlanRepository.save(plan);
         testAccount.addInstallmentPlan(plan);
@@ -269,7 +273,8 @@ public class InstallmentPlanTest {
                 BigDecimal.valueOf(0.1),
                 1,
                 InstallmentPlan.FeeStrategy.EVENLY_SPLIT,
-                testAccount
+                testAccount,
+                LocalDate.now()
         ); ////1201.2-100.1=1101.1
         installmentPlanRepository.save(plan);
         testAccount.addInstallmentPlan(plan);
@@ -314,7 +319,8 @@ public class InstallmentPlanTest {
                 BigDecimal.valueOf(0.1),
                 1,
                 InstallmentPlan.FeeStrategy.EVENLY_SPLIT,
-                testAccount
+                testAccount,
+                LocalDate.now()
         );
         installmentPlanRepository.save(plan);
         testAccount.addInstallmentPlan(plan);
