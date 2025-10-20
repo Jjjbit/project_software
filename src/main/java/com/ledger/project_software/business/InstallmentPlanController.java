@@ -45,7 +45,8 @@ public class InstallmentPlanController {
                                                 @RequestParam (required = false, defaultValue = "0") Integer paidPeriods,
                                                 @RequestParam(required = false, defaultValue = "0.00") BigDecimal feeRate,
                                                 @RequestParam(required = false, defaultValue = "EVENLY_SPLIT") InstallmentPlan.FeeStrategy feeStrategy,
-                                                @RequestParam Long linkedAccountId) {
+                                                @RequestParam Long linkedAccountId,
+                                                        @RequestParam LocalDate repaymentStartDate){
         if(principal == null){
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized access");
         }
@@ -79,7 +80,8 @@ public class InstallmentPlanController {
                                                               feeRate,
                                                               paidPeriods,
                                                               feeStrategy,
-                                                              linkedAccount);
+                                                              linkedAccount,
+                                                              repaymentStartDate);
         installmentPlanDAO.save(installmentPlan);
         ((CreditAccount) linkedAccount).addInstallmentPlan(installmentPlan);
         accountDAO.save(linkedAccount);
